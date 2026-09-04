@@ -1,0 +1,64 @@
+---
+type Props = {
+	owner: string;
+	repo: string;
+	note?: string;
+};
+
+const { owner, repo, note } = Astro.props;
+const url = `https://github.com/${owner}/${repo}`;
+---
+
+<section class="github-card" aria-label="GitHub repository">
+	<div>
+		<p class="kicker">Repository</p>
+		<a class="repo-link" href={url} target="_blank" rel="noopener">
+			{owner}/{repo}
+		</a>
+		{note && <p class="note">{note}</p>}
+	</div>
+	<a class="open" href={url} target="_blank" rel="noopener" aria-label={`Open ${owner}/${repo} on GitHub`}>
+		&rarr;
+	</a>
+</section>
+
+<style>
+	.github-card {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 1em;
+		margin: 2em 0;
+		padding: 1em 1.25em;
+		border: var(--border);
+		border-radius: var(--radius);
+		background: var(--card);
+	}
+	.kicker {
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		text-transform: uppercase;
+		letter-spacing: 0.12em;
+		color: rgb(var(--gray));
+		margin: 0 0 0.25em 0;
+	}
+	.repo-link {
+		font-family: var(--font-mono);
+		font-weight: 700;
+		color: rgb(var(--black));
+		text-decoration: none;
+	}
+	.repo-link:hover {
+		color: var(--accent);
+	}
+	.note {
+		margin: 0.4em 0 0 0;
+		font-size: 0.9em;
+		color: rgb(var(--gray));
+	}
+	.open {
+		font-size: 1.5rem;
+		text-decoration: none;
+		flex: none;
+	}
+</style>

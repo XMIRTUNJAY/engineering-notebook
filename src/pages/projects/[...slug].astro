@@ -1,5 +1,6 @@
 ---
 import { type CollectionEntry, getCollection, render } from 'astro:content';
+import RelatedContent from '../../components/case-study/RelatedContent.astro';
 import JsonLd from '../../components/JsonLd.astro';
 import TableOfContents from '../../components/TableOfContents.astro';
 import Base from '../../layouts/Base.astro';
@@ -66,6 +67,7 @@ const seriesOrder: string[] = [...new Set(lessons.map((l) => l.data.series))];
 				))}
 			</section>
 		)}
+		<RelatedContent currentId={project.id} kind="project" tags={[project.data.category, ...project.data.stack]} />
 		</div>
 		<TableOfContents />
 	</div>

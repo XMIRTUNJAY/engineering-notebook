@@ -1,0 +1,92 @@
+---
+type Props = {
+	title: string;
+	problem: string;
+	options: string[];
+	chosen: string;
+	why: string;
+	tradeoffs: string;
+	result?: string;
+};
+
+const { title, problem, options, chosen, why, tradeoffs, result } = Astro.props;
+---
+
+<section class="decision" aria-label={`Decision: ${title}`}>
+	<h3>{title}</h3>
+	<dl>
+		<div>
+			<dt>Problem</dt>
+			<dd>{problem}</dd>
+		</div>
+		<div>
+			<dt>Options considered</dt>
+			<dd>
+				<ul>
+					{options.map((opt) => (
+						<li>{opt}</li>
+					))}
+				</ul>
+			</dd>
+		</div>
+		<div>
+			<dt>Chosen</dt>
+			<dd>{chosen}</dd>
+		</div>
+		<div>
+			<dt>Why</dt>
+			<dd>{why}</dd>
+		</div>
+		<div>
+			<dt>Trade-offs</dt>
+			<dd>{tradeoffs}</dd>
+		</div>
+		{result && (
+			<div>
+				<dt>Result</dt>
+				<dd>{result}</dd>
+			</div>
+		)}
+	</dl>
+</section>
+
+<style>
+	.decision {
+		margin: 2em 0;
+		border: var(--border);
+		border-radius: var(--radius);
+		overflow: hidden;
+		background: var(--card);
+	}
+	.decision h3 {
+		margin: 0;
+		padding: 0.75em 1em;
+		border-bottom: var(--border);
+		font-size: 1.15rem;
+	}
+	.decision dl {
+		margin: 0;
+	}
+	.decision dl > div {
+		padding: 0.75em 1em;
+		border-bottom: var(--border);
+	}
+	.decision dl > div:last-child {
+		border-bottom: none;
+	}
+	.decision dt {
+		font-family: var(--font-mono);
+		font-size: 0.72em;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: rgb(var(--gray));
+		margin-bottom: 0.3em;
+	}
+	.decision dd {
+		margin: 0;
+	}
+	.decision dd ul {
+		margin: 0.25em 0 0 0;
+		padding-left: 1.25em;
+	}
+</style>

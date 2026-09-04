@@ -13,7 +13,12 @@
 	(function () {
 		var article = document.querySelector('[data-article-body]');
 		if (!article) return;
-		var headings = article.querySelectorAll('h2, h3');
+		var headings = Array.from(article.querySelectorAll('h2, h3')).filter(function (h) {
+			var el = h as HTMLElement;
+			if (el.hasAttribute('data-toc-skip')) return false;
+			if (el.closest('.series')) return false;
+			return true;
+		});
 		if (headings.length < 2) return;
 		document.querySelectorAll('[data-toc]').forEach(function (nav) {
 			var list = document.createElement('ol');

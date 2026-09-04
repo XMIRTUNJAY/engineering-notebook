@@ -53,6 +53,13 @@ const extra = rest.length - badges.length;
 				<span class="go" aria-hidden="true">&rarr;</span>
 			</h3>
 			<p class="row-desc clamp-3">{data.description}</p>
+			{data.focus.length > 0 && (
+				<ul class="focus" aria-label="Engineering focus">
+					{data.focus.slice(0, 4).map((f) => (
+						<li>{f}</li>
+					))}
+				</ul>
+			)}
 			<ul class="badge-row" aria-label="Languages and technologies">
 				{data.language && (
 					<li class="badge lang">
@@ -141,6 +148,25 @@ const extra = rest.length - badges.length;
 	.project-card a:hover .go,
 	.project-card a:focus-visible .go {
 		opacity: 1;
+	}
+	.focus {
+		margin: 0.75em 0 0 0;
+		padding: 0;
+		list-style: none;
+	}
+	.focus li {
+		font-size: 0.88em;
+		color: rgb(var(--gray-dark));
+		padding-left: 1.1em;
+		position: relative;
+		margin: 0.2em 0;
+	}
+	.focus li::before {
+		content: '›';
+		position: absolute;
+		left: 0;
+		color: var(--accent);
+		font-weight: 700;
 	}
 	.badge-row {
 		display: flex;

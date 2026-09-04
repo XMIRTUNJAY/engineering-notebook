@@ -10,6 +10,7 @@ featured: true
 draft: false
 cover: "/case-studies/networth-app/dashboard.png"
 language: "TypeScript"
+focus: ["Snapshot-sourced data modeling", "Seeded Monte Carlo forecasting", "Offline-first fetch interposer", "Deterministic calculation engine"]
 ---
 
 import ProjectHero from '../../components/case-study/ProjectHero.astro';
@@ -19,7 +20,10 @@ import ScreenshotGallery from '../../components/case-study/ScreenshotGallery.ast
 import DemoVideo from '../../components/case-study/DemoVideo.astro';
 import ArchitectureDiagram from '../../components/case-study/ArchitectureDiagram.astro';
 import Callout from '../../components/case-study/Callout.astro';
+import Decision from '../../components/case-study/Decision.astro';
 import EvidenceBar from '../../components/case-study/EvidenceBar.astro';
+import MetricsTable from '../../components/case-study/MetricsTable.astro';
+import Timeline from '../../components/case-study/Timeline.astro';
 import { siteUrl } from '../../lib/site';
 
 <ProjectHero
@@ -69,6 +73,16 @@ Four constraints drove every decision: financial data must work with zero cloud 
   A single hosted database would violate the privacy constraint; localStorage-only would cap query power and durability. So: server SQLite with migrations, a browser IndexedDB mirror, and Postgres purely for opt-in sync.
 </Callout>
 
+## Constraints
+
+Extracted from the implementation, not aspired to:
+
+- Must work with zero cloud dependency (local mode via Dexie mirror).
+- Data must remain private (SQLite file + optional self-hosted sync).
+- Calculations must be deterministic and testable (seeded engine, 40 unit tests).
+- Must support Excel/CSV import (dependency-free RFC-4180 parser + SheetJS wrapper).
+- Deployment must be one file plus one command (`next start` standalone + SQLite).
+
 ## Demo
 
 Screenshots and video captured from a live local run against fictional demo data (verified 2026-09-04). No real financial figures appear anywhere on this page.
@@ -109,6 +123,60 @@ Screenshots and video captured from a live local run against fictional demo data
     BR -->|local mode| DEX
     R -->|push/pull LWW| PG`}
   caption="One UI, two backends. The bridge interposes on fetch; the engine computes; snapshots are the source of truth."
+/>
+
+## Engineering decisions
+
+<Decision
+  title="Snapshots as source of truth"
+  problem="Net worth must be auditable and recomputable, not a number that drifts."
+  options={["Store computed net worth directly", "Derive from monthly per-asset snapshots", "Event-sourced ledger of every change"]}
+  chosen="Derive from snapshots; history table is a recalculated cache with no write route."
+  why="Snapshots are human-meaningful (one value per asset per month) and make every derived number reproducible from inputs."
+  tradeoffs="Two recompute paths (server recalc + client context) must be kept consistent; the 2025-09-01 audit flagged this as the top drift risk."
+  result="Change decomposition (contributions vs growth) falls out for free; export/restore stays coherent."
+/>
+
+<Decision
+  title="Seeded Monte Carlo bands instead of point forecasts"
+  problem="Single-number projections pretend certainty the market never offers."
+  options={["Deterministic compound projection only", "Monte Carlo with fixed seed", "Full stochastic model with fitted distributions"]}
+  chosen="LCG + Box-Muller simulation, 1000 paths, p10/p50/p90 output, seed parameter."
+  why="Seeded runs are bit-identical (measured), which makes statistical code unit-testable; bands communicate uncertainty honestly."
+  tradeoffs="LCG quality is fine for projections, not cryptography; inflation input is computed but not yet wired into the path."
+  result="~31 ms per run; UI recomputes per keystroke; tests assert exact outputs."
+/>
+
+## What didn't work
+
+Two documented before/after stories, both evidenced in the repo — no manufactured failures:
+
+**Attempt 1: health score v1.** `src/lib/finance.ts` computed health from allocation heuristics with weights totaling 95 and a goal component driven by milestone progress rather than goals. The audit called it half-fudged. **Final approach:** `src/lib/engine/health.ts` v2 — seven transparent sub-scores (liquidity, savings, debt, emergency, goals, diversification, history) weighting to exactly 100, with 2 unit tests pinning near-full and zero states.
+
+**Attempt 2: untested math layer.** The audit found no test framework installed at all. **Final approach:** the `engine/` split plus 9 vitest files, 40/40 passing (run 2026-09-04), with coverage mapping exactly onto the modules that matter.
+
+## Measured results
+
+<MetricsTable
+  title="Verification results"
+  headers={["Check", "Result", "Date"]}
+  rows={[
+    ["Unit tests (vitest)", "40 / 40 passing", "2026-09-04"],
+    ["CRUD smoke (project docs)", "25 / 25 passing", "per TEST_SUMMARY.md"],
+    ["E2E scripts", "smoke, import, full, prod present", "in repo"],
+    ["Seed determinism", "bit-identical across runs", "measured 2026-09-04"],
+    ["Monte Carlo cost", "~31 ms per 1000-sim run", "measured 2026-09-04"],
+  ]}
+  caption="Unit and determinism figures were executed for this case study; smoke figures are quoted from project docs as point-in-time."
+/>
+
+<Timeline
+  title="Project timeline"
+  items={[
+    { date: '2025-09-01', title: 'Architecture audit written', detail: 'Ten-item debt list, target engine layout, phase order: foundation before features.' },
+    { date: 'After audit', title: 'P1 foundation lands', detail: 'engine/ split plus 9 vitest files; health score rebuilt as v2.' },
+    { date: '2026-09-04', title: 'Independently verified', detail: '40/40 tests re-run, app executed locally, screenshots and narrated video captured from live runs.' },
+  ]}
 />
 
 ## Go deeper

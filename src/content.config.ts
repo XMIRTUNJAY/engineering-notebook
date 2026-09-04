@@ -35,6 +35,7 @@ const projects = defineCollection({
 			draft: z.boolean().default(false),
 			cover: z.string().optional(),
 			language: z.string().optional(),
+			focus: z.array(z.string()).default([]),
 			updatedDate: z.coerce.date().optional(),
 			heroImage: z.optional(image()),
 		}),

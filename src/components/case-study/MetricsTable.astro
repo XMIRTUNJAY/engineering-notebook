@@ -1,0 +1,72 @@
+---
+type Props = {
+	title: string;
+	headers: string[];
+	rows: string[][];
+	caption?: string;
+};
+
+const { title, headers, rows, caption } = Astro.props;
+---
+
+<figure class="metrics">
+	<figcaption>{title}</figcaption>
+	<div class="table-wrap">
+		<table>
+			<thead>
+				<tr>
+					{headers.map((h) => (
+						<th scope="col">{h}</th>
+					))}
+				</tr>
+			</thead>
+			<tbody>
+				{rows.map((row) => (
+					<tr>
+						{row.map((cell, i) =>
+							i === 0 ? <th scope="row">{cell}</th> : <td>{cell}</td>
+						)}
+					</tr>
+				))}
+			</tbody>
+		</table>
+	</div>
+	{caption && <p class="caption">{caption}</p>}
+</figure>
+
+<style>
+	.metrics {
+		margin: 1.5em 0;
+		border: var(--border);
+		border-radius: var(--radius);
+		overflow: hidden;
+	}
+	.metrics figcaption {
+		padding: 0.6em 1em;
+		border-bottom: var(--border);
+		font-weight: 700;
+		color: rgb(var(--black));
+	}
+	.table-wrap {
+		overflow-x: auto;
+	}
+	.metrics table {
+		margin: 0;
+	}
+	.metrics tbody th {
+		font-family: inherit;
+		font-size: inherit;
+		text-transform: none;
+		letter-spacing: normal;
+		color: rgb(var(--black));
+		text-align: left;
+		white-space: nowrap;
+	}
+	.caption {
+		margin: 0;
+		padding: 0.6em 1em;
+		font-size: 0.85em;
+		color: rgb(var(--gray));
+		border-top: var(--border);
+	}
+</style>

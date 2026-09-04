@@ -10,7 +10,7 @@ const { title = 'At a glance', rows } = Astro.props;
 ---
 
 <section class="metadata">
-	<h3>{title}</h3>
+	<h3 data-toc-skip>{title}</h3>
 	<dl>
 		{rows.map((row) => (
 			<div>

@@ -1,63 +1,39 @@
-# Astro Starter Kit: Blog
+# Engineering Notebook
 
-```sh
-npm create astro@latest -- --template blog
-```
+Personal engineering publication: real systems, documented with
+architecture, evidence, and decisions. Built with Astro, hosted on
+GitHub Pages at <https://xmirtunjay.github.io/engineering-notebook/>.
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+## What lives here
 
-Features:
+- `src/content/projects/` — case-study hubs (one per real project).
+- `src/content/tutorials/` — multi-part series, grouped by `series` slug.
+- `src/content/blog/` — essays (Writing).
+- `src/content/experiments/` — hypothesis-first research notes with measured tables.
+- `src/components/case-study/` — reusable case-study kit (hero, diagrams,
+  galleries, video, callouts, decisions, metrics, timelines, lessons).
+- `src/layouts/` — `Base`, `Article` (sticky scrollspy TOC + pager).
+- `tools/evidence-pack.ps1` — read-only repo inspector feeding the
+  tutorial pipeline.
+- `docs/ENGINEERING_NOTEBOOK_DESIGN.md` — design spec (source of truth).
+- `TUTORIAL-PLAYBOOK.md` — project-to-tutorial method (10 stages).
 
-- ✅ Minimal styling (make it your own!)
-- ✅ 100/100 Lighthouse performance
-- ✅ SEO-friendly with canonical URLs and Open Graph data
-- ✅ Sitemap support
-- ✅ RSS Feed support
-- ✅ Markdown & MDX support
+## Commands
 
-## 🚀 Project Structure
+| Command          | Action                                      |
+| :--------------- | :------------------------------------------ |
+| `npm install`    | Install dependencies                        |
+| `npm run dev`    | Dev server at `localhost:4321`              |
+| `npm run build`  | Static build to `./dist/` (17 pages)        |
+| `npm run preview`| Preview the build locally                   |
 
-Inside of your Astro project, you'll see the following folders and files:
+## Conventions
 
-```text
-├── public/
-├── src/
-│   ├── assets/
-│   ├── components/
-│   ├── content/
-│   ├── layouts/
-│   └── pages/
-├── astro.config.mjs
-├── README.md
-├── package.json
-└── tsconfig.json
-```
-
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
-
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
-
-The `src/content/` directory contains "collections" of related Markdown and MDX documents. Use `getCollection()` to retrieve posts from `src/content/blog/`, and type-check your frontmatter using an optional schema. See [Astro's Content Collections docs](https://docs.astro.build/en/guides/content-collections/) to learn more.
-
-Any static assets, like images, can be placed in the `public/` directory.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Check out [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
-
-## Credit
-
-This theme is based off of the lovely [Bear Blog](https://github.com/HermanMartinus/bearblog/).
+- All internal links via `siteUrl()` (`src/lib/site.ts`) — the site lives
+  under the `/engineering-notebook` base path.
+- Frontmatter schemas in `src/content.config.ts`; drafts stay
+  `draft: true` until reviewed.
+- No placeholders in production. No invented metrics, screenshots, or
+  dates. Sensitive data is seeded fiction, never real figures.
+- Dark mode, TOC, Mermaid (on-demand), expressive-code, JSON-LD TechArticle,
+  `llms.txt`, sitemap, RSS, robots.txt — all verified per release.
