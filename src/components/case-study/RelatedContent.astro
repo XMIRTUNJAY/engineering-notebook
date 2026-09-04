@@ -27,6 +27,7 @@ if (kind === 'project') {
 			const sameCategory = p.data.category === tags[0] ? 1 : 0;
 			return { p, score: overlap * 2 + sameCategory };
 		})
+		.filter((s) => s.score > 0)
 		.sort((a, b) => b.score - a.score)
 		.slice(0, limit);
 	for (const s of scored) {

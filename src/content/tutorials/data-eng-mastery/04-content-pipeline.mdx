@@ -1,0 +1,75 @@
+---
+title: "The content pipeline: how Priya's curriculum gets built"
+description: "Follow one syllabus from raw PDF to validated, searchable lesson: seven stages, idempotent re-runs, ordered validators, gated publishing."
+series: "data-eng-mastery"
+part: 4
+project: "data-eng-mastery"
+category: "Education / Learning"
+tags: ["python", "data-pipeline", "quality-gates", "beginners"]
+technologies: ["Python 3.11", "Redis", "PostgreSQL"]
+difficulty: "beginner"
+status: "Active"
+featured: false
+draft: false
+pubDate: 2026-09-05
+---
+
+import Callout from '../../../components/case-study/Callout.astro';
+import CodeExample from '../../../components/case-study/CodeExample.astro';
+
+## Why Priya never sees raw content
+
+Her Liquid Clustering lesson didn't fall from the sky — it traveled: syllabus PDF → extracted sections → generated draft → seven validators → versioned publish → search indexes → embeddings. A single script doing all of that is untestable and undebuggable at 3 AM. First principle: **a pipeline is an assembly line where every station can reject the part.** Follow one concept through all seven stations:
+
+| Stage | What happens to Priya's lesson |
+| ----- | ------------------------------ |
+| **Ingest** | Syllabus PDF/HTML fetched, hashed (SHA-256 receipt of what arrived) |
+| **Extract** | Sections and objectives parsed; concept boundaries get slug IDs |
+| **Generate** | Draft written: 6 explanation levels, examples, practice questions, traps, resources — deterministic IDs |
+| **Validate** | 7 ordered checks; failures stop the lesson here, never reach her |
+| **Publish** | Hash-compared upsert, version bump, history snapshot |
+| **Index** | Full-text search updated so she can find it |
+| **Vectorize** | 1024-dim embedding so "like this" works |
+
+## The 3 AM guarantee: idempotency
+
+Real code from `backend/app/pipeline/orchestrator.py`:
+
+<CodeExample
+  title="Stage receipts in Redis"
+  file="backend/app/pipeline/orchestrator.py"
+  what="Each stage records a SHA-256 receipt (24h TTL) before doing work; crashed runs resume by skipping finished stages."
+  why="Priya's curriculum must never duplicate because a job retried — the receipt stands between 'run it again' and 'publish everything twice'."
+  tradeoff="Receipts expire in 24h by design — resumability has a window. State the window; don't discover it during an incident."
+>
+```python
+IDEMPOTENCY_PREFIX = "pipeline:idempotency:"
+
+def _generate_stage_idempotency_key(self, certification_id, stage):
+    content = f"{certification_id}:{stage}"
+    return hashlib.sha256(content.encode()).hexdigest()[:32]
+```
+</CodeExample>
+
+Idempotency is a property of the *record of* the work, not the work. **Your turn:** add receipt-check-skip to any retryable job you own. Failed jobs land in a dead-letter queue as inspectable rows — retries become deliberate actions, and the orchestrator always knows where a run stands.
+
+## Validators, cheap first
+
+Schema shape (22 fields, slug patterns, `correct_answer ^[A-D]$`) → syllabus boundary → terminology → accuracy → duplicates (0.85) → quality thresholds → code execution (`ast.parse`). Fail fast on structure before spending on substance — compilers taught us; pipelines keep forgetting. When this ordering is wrong: expensive checks burn budget rejecting what a regex caught free.
+
+## What reaches her: a tradeoff with reversals
+
+Real entry from `knowledge-base/trade_off_matrices.yaml`:
+
+```yaml
+- scenario: "Table requires TTL-based data lifecycle"
+  recommended: "Partitioning"
+  alternative: "Liquid Clustering + manual DELETE"
+  reasoning: "DROP PARTITION is instant; DELETE + VACUUM is slower."
+```
+
+LLM generation is template-scaffolded (15 templates per difficulty band); nothing reaches Priya unvalidated. Policy in one sentence: **models draft, gates decide.** And note the reversal against the fashionable choice — matrices that always recommend the new thing are marketing. **Your turn:** write one genuine reversal for your own stack.
+
+## What worked, what I'd change
+
+Worked: stage independence (each runnable alone against yesterday's output), receipts, ordered gates. Changed already: validators grew from schema-only to seven as real failure classes appeared — gates follow observed failures, never imagined ones. Principle: **let production teach you what to validate; write it down so it teaches once.** Next: Part 5 — search, agents, glossary, principles.

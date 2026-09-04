@@ -107,6 +107,11 @@ CodeExample, Callout (decision/lesson/warning/evidence), Timeline,
 LessonsLearned, ProjectCardImage (cover + language dot + badges),
 TableOfContents, JsonLd, Lightbox. New needs → extend these, never fork.
 
+File-format rule: component imports require `.mdx` — plain `.md` renders
+`import` lines as visible text. Always write `.mdx` directly; never rename
+`.md` → `.mdx` without deleting `node_modules/.astro/data-store.json`
+first (the content layer otherwise keeps serving the old markdown parse).
+
 ## 9. Verification gate (every project, every time)
 
 - [ ] `npm run build`: 0 errors.

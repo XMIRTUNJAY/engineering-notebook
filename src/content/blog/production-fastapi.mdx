@@ -1,0 +1,49 @@
+---
+title: "FastAPI in production: three afternoons to boring reliability"
+description: "Move one write server-side, enforce layers with tests, install CI gates — each step grounded in real code from a learning-platform backend."
+pubDate: 2026-09-05
+---
+
+import CodeExample from '../../components/case-study/CodeExample.astro';
+import Callout from '../../components/case-study/Callout.astro';
+
+Tutorials teach endpoints; production is everything around them. The failure mode of most FastAPI codebases isn't architecture — it's accumulation: client-trusted writes, untestable handlers, rot nobody measures. Three afternoons, in order, each independently shippable.
+
+## Afternoon 1 — Move one write server-side
+
+Real code from an exam-submit endpoint (`backend/app/api/v1/exams.py`):
+
+<CodeExample
+  title="Server-authoritative rewards"
+  file="backend/app/api/v1/exams.py"
+  what="70% pass threshold; on pass, the backend awards 50 plus up to 50 scaled by score — with a comment citing the bug that moved it here."
+  why="Clients awarded XP before, and clients can lie. BUG-017 is now a one-line history lesson for every future reader."
+  tradeoff="A deliberate import-cycle break inside the route; the alternative (client-trusted XP) is a cheat code waiting to happen. Lint noise versus incidents — take the noise."
+>
+```python
+passed = score >= 0.7  # 70% passing threshold
+exam.passed = passed
+# BUG-017: award XP server-side on exam pass (backend is source of truth).
+if passed:
+    from app.services.game_state_service import record_exam_pass
+    await record_exam_pass(db, current_user.id, 50 + round(score * 50))
+```
+</CodeExample>
+
+**Your turn:** audit one write path in your project. Who decides — client or server? Move it server-side with a history comment. Then generalize: name the source of truth per concern and defend each in review. Failure mode prevented: forged progress and support tickets you cannot adjudicate.
+
+<Callout type="lesson" title=" staff lens">
+  Juniors write tests; staff engineers make untested code unmergeable. The coverage floor matters less than its existence — the day it goes red is the day it earns its keep.
+</Callout>
+
+## Afternoon 2 — Make layers testable, then test them
+
+Router → service → model, no skips; Pydantic on both doors. The reference backend runs **86 unit tests in ~4 seconds** precisely because services never need HTTP and algorithms never need the database. Add response models everywhere (kills serialization bugs), rate-limit auth first (5 per 5 minutes kills the easiest attack). When layering is wrong for you: weekend prototypes should stay flat — layers scale with lifespan, and premature layering is its own smell.
+
+## Afternoon 3 — Install gates that bite
+
+Ruff, strict mypy, pytest with an **80% coverage floor**, contract tests against your own OpenAPI schema, dependency audits, Docker build smoke. Then the remainder: JWT rotation, audit logs, GDPR wipe, health checks, request IDs, structured logs, pooled connections. First principle: **a gate you can bypass is documentation; a required check is architecture.**
+
+## What worked, what I'd change
+
+Worked: the BUG-017 convention (history comments on trust moves) and the coverage floor as rot prevention. I'd change: strict mypy currently blocked by a 3.11-vs-3.12 config mismatch that predates this writing — gates must run green to mean anything, and a red-ignored gate is worse than none. Principle: boring reliability is an accumulation of unglamorous choices, each permanent. Next investigation: contract-test coverage of the 16-router surface, measured, not assumed.

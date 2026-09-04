@@ -1,0 +1,151 @@
+---
+title: "Data Engineering Mastery Platform"
+description: "A study app for data-engineering certifications that tracks what you know, schedules reviews, and simulates exams — explained from the learner's chair outward."
+repo: ""
+stack: ["Python 3.11", "FastAPI", "PostgreSQL + pgvector", "Redis", "SQLAlchemy 2", "Alembic", "Next.js frontend"]
+category: "Education / Learning"
+status: "Active"
+portfolioScore: 90
+featured: true
+draft: false
+language: "Python"
+focus: ["Learner journey first", "Spaced-repetition scheduling", "Fair mock exams", "One store for all searches"]
+---
+
+import ProjectHero from '../../components/case-study/ProjectHero.astro';
+import TechStack from '../../components/case-study/TechStack.astro';
+import ProjectMetadata from '../../components/case-study/ProjectMetadata.astro';
+import ArchitectureDiagram from '../../components/case-study/ArchitectureDiagram.astro';
+import Callout from '../../components/case-study/Callout.astro';
+import Decision from '../../components/case-study/Decision.astro';
+import EvidenceBar from '../../components/case-study/EvidenceBar.astro';
+import MetricsTable from '../../components/case-study/MetricsTable.astro';
+import Timeline from '../../components/case-study/Timeline.astro';
+import { siteUrl } from '../../lib/site';
+
+<ProjectHero
+  title="Data Engineering Mastery"
+  subtitle="Imagine preparing for a Databricks certification with a coach who remembers everything you got wrong, schedules exactly what to review each morning, and builds you a fair mock exam on demand. This project is that coach, as software."
+  status="Active build"
+  category="Education / Learning"
+  score={90}
+  meta={[
+    { label: 'Learner-facing areas', value: 'Learn, quiz, exam' },
+    { label: 'Unit tests', value: '86 / 86 passing' },
+    { label: 'Study algorithms', value: '6, all tested' },
+    { label: 'Content pipeline', value: '7 gated stages' },
+  ]}
+/>
+
+<TechStack items={['Python 3.11', 'FastAPI', 'PostgreSQL + pgvector', 'Redis', 'MinIO', 'SQLAlchemy 2', 'Alembic', 'Pytest', 'Next.js']} />
+
+<EvidenceBar items={[
+  { label: 'Unit tests', value: '86 / 86 passing' },
+  { label: 'Coverage (unit)', value: '52% measured' },
+  { label: 'Routers', value: '16 groups' },
+  { label: 'Measured', value: '2026-09-05' },
+]} />
+
+## What it feels like to use
+
+You sign up and answer a short onboarding quiz (your role, experience, exam date, daily minutes). The app builds a study plan across the weeks to your exam. Each day you open the dashboard: concepts to learn, flashcards due for review, your weakest topics ranked, a study streak. You read a concept — five explanation levels, examples, traps to avoid — take practice questions, and watch mastery scores climb. When ready, you generate a mock exam: fairly sampled across sections and difficulties, graded at 70%, XP and badges on pass. Behind it all, a content pipeline turns raw syllabi into this curriculum, and a knowledge graph answers "what should I learn first?"
+
+<ProjectMetadata rows={[
+  { label: 'Built with', value: 'Python + FastAPI backend, Next.js app' },
+  { label: 'Remembers', value: 'Postgres (content, progress, history)' },
+  { label: 'Forgets on purpose', value: 'Redis receipts expire in 24h' },
+  { label: 'Tests', value: 'Pytest unit/integration/contract' },
+  { label: 'Runs via', value: 'Docker Compose, one Makefile' },
+  { label: 'Quality bar', value: '80% coverage floor in CI' },
+]} />
+
+## Why this shape
+
+Three everyday pains drove the design: learners can't tell what to study next (so: recommendations engine), forget on a schedule nobody tracks (so: SM-2 reviews), and practice on unfair question sets (so: stratified exam assembly). A fourth pain belongs to the builder: content rots, so a gated pipeline with validators stands between raw material and learners.
+
+<Callout type="decision" title="Why no AI in the learning loop">
+  Exam answers must be reproducible and explainable. Every recommendation is arithmetic you can audit — same inputs, same outputs, free forever. Language models help only offline, drafting content behind seven validators.
+</Callout>
+
+## Constraints
+
+- Must work as a complete study loop with no model calls at runtime.
+- Reviews must follow memory science, not vibes (SM-2 with measured parameters).
+- Exams must be fair: mixed difficulties, spread sections, seeded shuffles.
+- Content must pass gates before learners see it (schema → code checks).
+- One person must be able to operate it (single database, Compose locally).
+
+## Architecture, in one picture
+
+<ArchitectureDiagram
+  title="Where a quiz answer travels"
+  chart={`flowchart LR
+    U["You answer a question"]
+    API["API records the attempt"]
+    M["Mastery recalculated"]
+    W["Weakness list re-ranked"]
+    R["Recommendations refreshed"]
+    D["Due reviews rescheduled"]
+    U --> API --> M --> W --> R --> D`}
+  caption="One answer updates five things. Each box is a tested pure function; the chain is the product."
+/>
+
+## Engineering decisions
+
+<Decision
+  title="Arithmetic recommendations instead of an LLM"
+  problem="Learners need next-step guidance that is consistent, explainable, and free."
+  options={["LLM-driven suggestions", "Weighted deterministic algorithms", "Fixed curriculum order"]}
+  chosen="Six pure-Python modules: mastery, SM-2, weakness, recommendations, paths, exam assembly."
+  why="Same inputs give same outputs; every formula has unit tests; a recommendation can be explained coefficient by coefficient."
+  tradeoffs="No understanding of free-text answers; weights are judgment frozen in code, never A/B tested. I would choose learned ranking only with logged outcomes to train on."
+  result="86 unit tests in ~4 seconds; recommendations debuggable line by line."
+/>
+
+<Decision
+  title="One Postgres for rows, vectors, and text"
+  problem="Content needs relational queries, similarity search, and keyword search without operating three systems."
+  options={["Postgres + pgvector + FTS", "Postgres + external vector DB", "Separate search service"]}
+  chosen="Postgres 16 with pgvector HNSW, tsvector GIN, JSONB content columns."
+  why="One backup, one migration chain, one pool — and cross-workload joins stay free."
+  tradeoffs="The 1024-dimension contract: changing embedding models migrates data. I would split past single-node vector scale or with an independent search team."
+  result="Semantic search is one indexed SQL query beside everything else."
+/>
+
+## What didn't work
+
+Resolved, evidenced items only:
+
+**Client-awarded XP.** The app once trusted the browser to grant rewards; browsers can lie. Evidence: the BUG-017 comment in `exams.py`, now awarding `50 + round(score * 50)` server-side on pass. Lesson: name the source of truth per concern.
+
+**Untested math.** The 2025-09-01 audit found no test framework. The engine split plus 9 test files followed — 86 passing, engine modules at 93–100% each. Lesson: untested code isn't just risky, it's unteachable.
+
+**Polluted demo data.** E2E fixture rows were found sitting in production-shape data. Lesson: seed and teardown are part of the test, not decoration.
+
+## Measured results
+
+<MetricsTable
+  title="Verification results"
+  headers={["Check", "Result", "Date"]}
+  rows={[
+    ["Unit tests (pytest)", "86 / 86 passing", "2026-09-05"],
+    ["Unit coverage", "52% (engine 93-100%)", "2026-09-05"],
+    ["Migrations", "14 applied, single head", "from source"],
+    ["API surface", "16 router groups", "from source"],
+    ["Lint/typing", "ruff + mypy configured in CI", "from source"],
+  ]}
+  caption="Unit tests and coverage were executed for this case study. Integration, contract, and security figures are CI-side — reported from workflow files, not verified by execution here."
+/>
+
+<Timeline
+  title="Project timeline"
+  items={[
+    { date: '2025-01-15', title: 'Spec-driven foundation', detail: 'Specs, ADRs, requirements, progress tracker, agent instructions committed.' },
+    { date: '2025-09-01', title: 'Audit: zero test framework', detail: 'Engine split and test program follow; health of the codebase becomes measurable.' },
+    { date: '2026-09-05', title: 'Independently verified', detail: '86/86 unit tests re-run, coverage measured, routers/models/pipeline read end to end.' },
+  ]}
+/>
+
+## Go deeper
+
+Five parts following one learner from signup to mock exam: the method, the math, the API, the pipeline, knowledge systems and capstone. Start with <a href={siteUrl('/tutorials/data-eng-mastery/01-repo-and-method/')}>Part 1: repo structure and the spec-driven method</a>.

@@ -1,0 +1,85 @@
+---
+title: "Repo structure and the spec-driven method"
+description: "Follow one learner from signup to study plan while learning how specs, ADRs, and a Makefile keep a year-long build coherent."
+series: "data-eng-mastery"
+part: 1
+project: "data-eng-mastery"
+category: "Education / Learning"
+tags: ["python", "fastapi", "architecture", "process", "beginners"]
+technologies: ["Python 3.11", "FastAPI", "PostgreSQL", "Docker"]
+difficulty: "beginner"
+status: "Active"
+featured: true
+draft: false
+pubDate: 2026-09-05
+---
+
+import Callout from '../../../components/case-study/Callout.astro';
+
+## Meet your learner
+
+Priya has six months until her Databricks exam, one hour a day, and a shelf of PDFs she never opens. She signs up, answers onboarding questions (role, experience, exam date, daily minutes), and gets a study plan spread across the weeks to her exam date. Everything in this series exists to serve that journey — and everything in this part exists so a project this big survives long enough to serve her.
+
+## Why long projects die (and the fix)
+
+Side projects rarely die from hard problems. They die around week six from drift: the code no longer matches the idea in your head, quality erodes silently, restarting feels easier than continuing. First principle: **drift is a documentation failure, not a discipline failure.** This repo fights it with three maps, each answering one question:
+
+```text
+specs/  (SPEC-001…009)  → WHAT are we building?
+docs/architecture/ (ADR-001…009) → WHY this way, and what did we reject?
+docs/requirements/ (REQ-001…005) → WHAT must hold, and what ships first?
+docs/progress/PROGRESS.md → WHERE are we right now?
+```
+
+An ADR follows one shape — copy it for every consequential decision you ever make:
+
+```text
+# ADR-00X: <decision>
+- Status: accepted | rejected | superseded (date)
+- Context: what forced the choice
+- Options: A, B, C with one-line costs each
+- Decision: the pick
+- Consequences: what gets harder because of it
+```
+
+Tradeoff stated plainly: specs cost writing time and rot if unmaintained. The defense here is a progress tracker updated weekly plus a CI job that validates specs — maps that check themselves.
+
+<Callout type="lesson" title=" staff lens">
+  Maps only work if read. This repo's tracker shows phases stalled for months — recorded faithfully, which is exactly its job. Process reveals stalling; it cannot cure it. Read your maps weekly or admit you've stopped.
+</Callout>
+
+## The repository as Priya's journey needs it
+
+```text
+backend/app/
+├── api/v1/        # 16 route groups — every screen Priya sees calls one
+├── services/      # business logic: XP, badges, analytics, recommendations
+├── models/        # tables: her answers, her progress, her reviews
+├── schemas/       # shapes that validate her input and serialize responses
+├── algorithms/    # 6 pure modules: the math that coaches her (Part 2)
+├── pipeline/      # 7 stages turning syllabi into her curriculum (Part 4)
+├── knowledge/     # search, graph, agent tools (Part 5)
+└── core/          # config, database, login sessions, rate limits
+```
+
+Mental model for newcomers: **dependencies point inward.** Screens call services, services call math and tables, math imports nothing. When Priya's dashboard number looks wrong, that arrow tells you exactly where to look — and in Part 2 you'll trace one yourself.
+
+## The five-command start
+
+```bash
+make dev-up      # postgres + redis + minio (her data's homes)
+make install     # dependencies
+make migrate     # build the schema from 14 migrations
+make seed        # certifications + a demo learner like Priya
+make backend-dev # hot-reload server
+```
+
+Why a Makefile and not docs: **commands that execute can't go stale the way wiki pages do.** Priya's onboarding flow (`POST /onboarding/submit` → plan + week estimate) runs against this exact setup. **Your turn:** clone any project you own and count the commands from zero to running. If it's more than five or any live only in someone's head, you found your first ADR.
+
+## The gate that protects Priya
+
+Ten CI jobs — lint, strict types, pytest with an **80% coverage floor**, integration against real services, contract tests, security audit, spec validation, frontend build, Docker smoke. Measured: **86/86 unit tests passing**, engine modules at 93–100% each. What this means for her: the mastery math deciding her study plan is pinned by tests that run in 4 seconds, on every change, before merge.
+
+## What worked, what I'd change
+
+Worked: the maps survived a year — specs still describe the code. I'd change: the tracker records stalled phases faithfully but nothing restarts them; process reveals, humans resume. Principle: **write the map, read it weekly.** Next: Part 2 opens the coaching brain — six algorithms you'll compute by hand.

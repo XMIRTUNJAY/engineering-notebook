@@ -1,0 +1,79 @@
+---
+title: "Knowledge systems and capstone: search, agents, and principles"
+description: "How Priya finds things, how agents use the same backend, every term defined, and the principles worth stealing — with what I'd investigate next."
+series: "data-eng-mastery"
+part: 5
+project: "data-eng-mastery"
+category: "Education / Learning"
+tags: ["python", "pgvector", "knowledge-graph", "mcp", "beginners"]
+technologies: ["PostgreSQL + pgvector", "Python 3.11"]
+difficulty: "beginner"
+status: "Active"
+featured: false
+draft: false
+pubDate: 2026-09-05
+---
+
+import Callout from '../../../components/case-study/Callout.astro';
+import CodeExample from '../../../components/case-study/CodeExample.astro';
+
+## When Priya searches
+
+She types "clustering" and gets concepts ranked by meaning, not keywords. One query does it — real code from `backend/app/knowledge/engine.py`:
+
+<CodeExample
+  title="Cosine similarity over content rows"
+  file="backend/app/knowledge/engine.py"
+  what="Embeddings beside the rows they describe; top-10 above a 0.7 cutoff, HNSW-indexed, joinable with certification and keyword filters."
+  why="No vector service, no sidecar, no sync job — and cross-workload joins stay free in one round trip."
+  tradeoff="The 1024-dimension contract: embedding size is baked into the column, so changing models migrates data. Split past single-node scale or with an independent search team — neither holds here."
+>
+```sql
+SELECT c.*, 1 - (c.embedding <=> :embedding) AS similarity ...
+WHERE 1 - (c.embedding <=> :embedding) >= :threshold
+ORDER BY similarity DESC LIMIT :k
+```
+</CodeExample>
+
+First principle: **co-locate what you correlate.** **Your turn:** add one embedding column plus this query shape behind your existing search box before shopping for infrastructure.
+
+## When Priya asks "what first?"
+
+Typed edges (prerequisite, enables, replaces, related) answer three questions: ancestors (what first), reverse lookup (what unlocks), depth-sorted paths minus mastered nodes. Kahn's topological sort *raises* on cycles — a curriculum requiring A-before-B-before-A is broken by construction, and code should prove it. Match machinery to scale: under ~50 static nodes, sorted adjacency beats a graph database with an operator.
+
+## When agents ask instead of Priya
+
+Same backend, third client: MCP tools (search, concept, path, progress, quiz, export) plus Obsidian vault exports. Mental model: **client diversity tests service design** — clean Part-3 services meant agents mapped to existing capabilities instead of demanding new endpoints. Design services so the third client is cheap; you won't know what it is yet.
+
+## Vocabulary (her words → our words)
+
+- **Concept** — one learnable idea with explanations, examples, traps.
+- **Mastery (0–1, stored 0–1000)** — measured command; 0.55 means "understanding", 0.74 "application".
+- **SM-2 card** — a flashcard with an ease and a next-review date.
+- **Weak topic** — weakness score above 0.4, with a typed reason.
+- **Stratified exam** — fair paper: 40/40/20 difficulty mix, seeded shuffle.
+- **Idempotency receipt** — proof a stage finished, so re-runs skip it.
+- **Dead-letter queue** — where failed jobs wait to be understood.
+- **HNSW / tsvector** — fast similarity index / keyword search index.
+- **MCP tool** — one backend capability, callable by AI agents.
+- **JWT rotation** — short access tokens plus renewable refresh tokens.
+
+## What worked
+
+Spec-first structure surviving a year; pure-function engine testable in milliseconds; one store serving three query kinds; gates deciding while models draft; sources of truth named per concern.
+
+## What didn't (resolved, evidenced)
+
+Client-awarded XP → server-side (BUG-017). Untested math → 86 tests. Fixture rows polluting production-shape data → seed/teardown discipline. Each encoded — in code, tests, or process — so it teaches forever.
+
+## What I'd change
+
+Write the dimension contract before the first embedding lands (discovered, not designed). Collapse the duplicate flat/integration test files into one layout. Promote the progress tracker from honest record to weekly ritual.
+
+## Principle worth keeping
+
+Structured projects feel calm because every hard question was answered once, in writing, where the code can point at it. Tangled projects feel loud because those answers live in someone's head — usually someone who left.
+
+## What I'd investigate next
+
+Calibrating mastery weights against logged outcomes (judgment → evidence); hybrid keyword-plus-vector ranking with measured lifts; per-section time estimates from attempt timestamps. Each a small experiment — hypotheses first, numbers after. **Your turn:** pick one, write its hypothesis in one sentence, and name the measurement that would confirm it.

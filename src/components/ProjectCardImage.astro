@@ -5,9 +5,10 @@ import { siteUrl } from '../lib/site';
 type Props = {
 	project: CollectionEntry<'projects'>;
 	lessonCount?: number;
+	categorySlug?: string;
 };
 
-const { project, lessonCount } = Astro.props;
+const { project, lessonCount, categorySlug } = Astro.props;
 const { data } = project;
 
 // GitHub-linguist-inspired language dot colors.
@@ -37,7 +38,7 @@ const badges = rest.slice(0, 4);
 const extra = rest.length - badges.length;
 ---
 
-<li class="project-card">
+<li class="project-card" data-category={categorySlug ?? ''}>
 	<a href={siteUrl(`/projects/${project.id}/`)}>
 		{data.cover ? (
 			<img src={siteUrl(data.cover)} alt={`${data.title} screenshot`} loading="lazy" decoding="async" />
@@ -52,10 +53,10 @@ const extra = rest.length - badges.length;
 				{data.title}
 				<span class="go" aria-hidden="true">&rarr;</span>
 			</h3>
-			<p class="row-desc clamp-3">{data.description}</p>
+			<p class="row-desc clamp-2">{data.description}</p>
 			{data.focus.length > 0 && (
 				<ul class="focus" aria-label="Engineering focus">
-					{data.focus.slice(0, 4).map((f) => (
+					{data.focus.slice(0, 2).map((f) => (
 						<li>{f}</li>
 					))}
 				</ul>
@@ -104,7 +105,7 @@ const extra = rest.length - badges.length;
 	.project-card img {
 		display: block;
 		width: 100%;
-		aspect-ratio: 16 / 9;
+		aspect-ratio: 16 / 8;
 		object-fit: cover;
 		object-position: top;
 		border-radius: 0;
@@ -118,13 +119,13 @@ const extra = rest.length - badges.length;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		aspect-ratio: 16 / 9;
+		aspect-ratio: 16 / 8;
 		border-bottom: var(--border);
 		background: var(--code-bg);
 	}
 	.cover-fallback span {
 		font-family: var(--font-display);
-		font-size: 3rem;
+		font-size: 2.5rem;
 		color: rgb(var(--gray));
 	}
 	.project-card a:hover h3 {
@@ -134,10 +135,10 @@ const extra = rest.length - badges.length;
 		display: flex;
 		flex-direction: column;
 		flex: 1;
-		padding: 1.25em 1.25em 1.1em 1.25em;
+		padding: 1em 1.1em 0.9em 1.1em;
 	}
 	.card-body h3 {
-		font-size: 1.3rem;
+		font-size: 1.15rem;
 		margin: 0.25em 0;
 	}
 	.go {

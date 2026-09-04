@@ -1,0 +1,46 @@
+---
+title: "Postgres for everything: rows, vectors, and text in one store"
+description: "Implement hybrid content search without new infrastructure: one similarity query, the dimension contract, and an honest split criterion."
+pubDate: 2026-09-05
+---
+
+import CodeExample from '../../components/case-study/CodeExample.astro';
+import Callout from '../../components/case-study/Callout.astro';
+
+The failure mode this avoids: three systems (Postgres + vector DB + search cluster) adopted before any measurement justifies them — three backups, three migration stories, three 3 AM pages. First principle: **co-locate what you correlate.** Start from the query you wish you could run, and implement it on what you have.
+
+## Step 1 — Write the query
+
+Real code from a knowledge engine (`backend/app/knowledge/engine.py`):
+
+<CodeExample
+  title="Cosine similarity over content rows"
+  file="backend/app/knowledge/engine.py"
+  what="Top-10 concepts above 0.7 similarity, HNSW-indexed, joinable with certification and keyword filters in one round trip."
+  why="Embeddings beside rows beats a sidecar: one backup, one migration chain, one pool — and cross-workload joins stay free."
+  tradeoff="Threshold and limit are product decisions with measured effects; expose and document them instead of hardcoding magic. The 1024-dimension contract means changing models migrates data."
+>
+```sql
+SELECT c.*, 1 - (c.embedding <=> :embedding) AS similarity ...
+WHERE 1 - (c.embedding <=> :embedding) >= :threshold
+ORDER BY similarity DESC LIMIT :k
+```
+</CodeExample>
+
+**Your turn:** add the pgvector extension, one embedding column on your core content table, and this query shape behind your existing search box. tsvector GIN indexes cover keywords beside it; JSONB holds evolving content without per-field migrations. Ship that before anything fancier — then measure whether "fancier" is needed at all.
+
+<Callout type="lesson" title=" staff lens">
+  Shopping impulse disguised as architecture is the most expensive beginner mistake in infrastructure. Implement on what you have, measure, and let the measurement — never the talk — justify the second system.
+</Callout>
+
+## Step 2 — Sign the dimension contract
+
+Embedding size is baked into the column type: changing models migrates data, not just code. Pin the model deliberately, version the migration path, treat cutoffs as tuned constants with owners. Mental model: **every magic number is a product decision that hasn't been assigned yet** — assign them, with names and dates.
+
+## Step 3 — Know the exit honestly
+
+Split when a workload genuinely diverges: vector scale past single-node comfort, linguistic search beyond tsvector, or a team owning search independently. Until then, resist the sprawl. When one store is wrong: at genuine scale the single pool becomes the contention point and the migration story turns heroic — that is the honest signal, not conference talks.
+
+## What worked, what I'd change
+
+Worked: one query answering similarity + certification + keywords; HNSW keeping it fast without new infrastructure. I'd change: hybrid keyword-plus-vector ranking is still designed, not measured — the next experiment is already scoped (queries, relevance judgments, lift numbers). Principle: implement on what you have, measure, and let the measurement — never the talk — justify the second system.
