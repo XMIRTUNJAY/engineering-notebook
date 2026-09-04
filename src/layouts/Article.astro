@@ -1,0 +1,145 @@
+---
+import Base from './Base.astro';
+import JsonLd from '../components/JsonLd.astro';
+import TableOfContents from '../components/TableOfContents.astro';
+
+type Crumb = { label: string; href: string };
+
+type Props = {
+	title: string;
+	description: string;
+	kicker?: string;
+	meta?: string[];
+	tags?: string[];
+	seriesNav?: { label: string; href: string } | null;
+	prev?: { label: string; href: string } | null;
+	next?: { label: string; href: string } | null;
+	crumbs?: Crumb[];
+	ogImage?: string;
+	datePublished?: string;
+	dateModified?: string;
+	canonicalPath?: string;
+};
+
+const { title, description, kicker, meta = [], tags = [], seriesNav, prev, next, crumbs = [], ogImage, datePublished, dateModified, canonicalPath } = Astro.props;
+const canonicalUrl = canonicalPath ? `https://xmirtunjay.github.io/engineering-notebook${canonicalPath}` : undefined;
+---
+
+<Base title={title} description={description} ogImage={ogImage}>
+	{datePublished && canonicalUrl && (
+		<JsonLd
+			headline={title}
+			description={description}
+			datePublished={datePublished}
+			dateModified={dateModified}
+			url={canonicalUrl}
+			tags={tags}
+		/>
+	)}
+	<div class="article-grid">
+		<article class="prose" data-article-body>
+			{crumbs.length > 0 && (
+				<nav class="crumbs" aria-label="Breadcrumb">
+					{crumbs.map((c, i) => (
+						<span>
+							{i > 0 && ' / '}
+							<a href={c.href}>{c.label}</a>
+						</span>
+					))}
+				</nav>
+			)}
+			{kicker && <p class="kicker">{kicker}</p>}
+			<h1>{title}</h1>
+			<p class="lede">{description}</p>
+			{meta.length > 0 && (
+				<div class="meta-line">
+					{meta.map((m) => (
+						<span>{m}</span>
+					))}
+				</div>
+			)}
+			{tags.length > 0 && (
+				<ul class="tags">
+					{tags.map((t) => (
+						<li>{t}</li>
+					))}
+				</ul>
+			)}
+			<slot />
+			{(prev || next || seriesNav) && (
+				<nav class="pager">
+					{prev ? (
+						<a href={prev.href}>&larr; {prev.label}</a>
+					) : (
+						<span />
+					)}
+					{seriesNav && <a href={seriesNav.href}>{seriesNav.label}</a>}
+					{next ? (
+						<a class="next" href={next.href}>
+							{next.label} &rarr;
+						</a>
+					) : (
+						<span />
+					)}
+				</nav>
+			)}
+		</article>
+		<TableOfContents />
+	</div>
+</Base>
+
+<style>
+	.article-grid {
+		display: grid;
+		grid-template-columns: minmax(0, var(--measure)) 220px;
+		gap: 3rem;
+		justify-content: center;
+		align-items: start;
+	}
+	.article-grid .prose {
+		margin: 0;
+	}
+	.kicker {
+		font-family: var(--font-mono);
+		font-size: 0.78rem;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: var(--accent);
+		font-weight: 700;
+		margin: 0 0 0.5em 0;
+	}
+	.article-grid h1 {
+		margin-top: 0;
+	}
+	.lede {
+		font-size: 1.2em;
+		color: rgb(var(--gray-dark));
+		line-height: 1.6;
+	}
+	.crumbs {
+		font-family: var(--font-mono);
+		font-size: 0.78rem;
+		color: rgb(var(--gray));
+		margin-bottom: 1.5em;
+	}
+	.crumbs a {
+		color: rgb(var(--gray));
+	}
+	.pager {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 1em;
+		margin-top: 3em;
+		padding-top: 1.5em;
+		border-top: var(--border);
+	}
+	.pager .next {
+		margin-left: auto;
+	}
+	@media (max-width: 1024px) {
+		.article-grid {
+			grid-template-columns: minmax(0, var(--measure));
+		}
+	}
+</style>

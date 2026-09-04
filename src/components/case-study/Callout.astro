@@ -1,0 +1,61 @@
+---
+type Props = {
+	type?: 'decision' | 'lesson' | 'warning' | 'evidence' | 'debt';
+	title?: string;
+};
+
+const { type = 'decision', title } = Astro.props;
+
+const labels: Record<string, string> = {
+	decision: 'Decision',
+	lesson: 'Lesson',
+	warning: 'Honest caveat',
+	evidence: 'Evidence',
+	debt: 'Known debt',
+};
+---
+
+<aside class={`callout ${type}`}>
+	<p class="callout-label">{title ?? labels[type]}</p>
+	<div class="callout-body">
+		<slot />
+	</div>
+</aside>
+
+<style>
+	.callout {
+		margin: 1.5em 0;
+		padding: 1em 1.25em 1em 1.25em;
+		border: var(--border);
+		border-left: 3px solid var(--accent);
+		border-radius: 0 var(--radius) var(--radius) 0;
+		background: var(--card);
+	}
+	.callout.warning {
+		border-left-color: #c2410c;
+	}
+	.callout.debt {
+		border-left-color: #b91c1c;
+	}
+	.callout.lesson {
+		border-left-color: #15803d;
+	}
+	.callout.evidence {
+		border-left-color: #1d4ed8;
+	}
+	.callout-label {
+		margin: 0 0 0.5em 0;
+		font-family: var(--font-mono);
+		font-size: 0.75em;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: rgb(var(--gray));
+	}
+	.callout-body > :first-child {
+		margin-top: 0;
+	}
+	.callout-body > :last-child {
+		margin-bottom: 0;
+	}
+</style>

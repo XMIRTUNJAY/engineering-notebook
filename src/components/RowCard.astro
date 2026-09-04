@@ -1,0 +1,20 @@
+---
+type Props = {
+	kicker: string;
+	title: string;
+	href: string;
+	description: string;
+	meta: string;
+};
+
+const { kicker, title, href, description, meta } = Astro.props;
+---
+
+<li>
+	<a class="row-link" href={href}>
+		<span class="row-kicker">{kicker}</span>
+		<h3>{title}</h3>
+		<p class="row-desc">{description}</p>
+		<span class="row-meta">{meta}</span>
+	</a>
+</li>

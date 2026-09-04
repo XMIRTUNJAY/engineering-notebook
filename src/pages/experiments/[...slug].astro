@@ -1,0 +1,35 @@
+﻿---
+import { type CollectionEntry, getCollection, render } from 'astro:content';
+import Article from '../../layouts/Article.astro';
+import { siteUrl } from '../../lib/site';
+
+export async function getStaticPaths() {
+	const experiments = await getCollection('experiments', ({ data }) => !data.draft);
+	return experiments.map((experiment) => ({
+		params: { slug: experiment.id },
+		props: experiment,
+	}));
+}
+type Props = CollectionEntry<'experiments'>;
+
+const experiment = Astro.props;
+const { Content } = await render(experiment);
+---
+
+<Article
+	title={experiment.data.title}
+	description={experiment.data.description}
+	kicker={`Experiment Â· ${experiment.data.category}`}
+	meta={[
+		experiment.data.pubDate.toISOString().slice(0, 10),
+		experiment.data.status,
+		...(experiment.data.technologies.length > 0 ? [experiment.data.technologies.join(', ')] : []),
+	]}
+	tags={experiment.data.tags}
+	crumbs={[{ label: 'Experiments', href: siteUrl('/experiments/') }]}
+	datePublished={experiment.data.pubDate.toISOString()}
+	dateModified={experiment.data.updatedDate?.toISOString()}
+	canonicalPath={`/experiments/${experiment.id}/`}
+>
+	<Content />
+</Article>

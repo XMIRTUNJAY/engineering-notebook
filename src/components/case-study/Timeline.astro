@@ -1,0 +1,63 @@
+---
+type Item = { date: string; title: string; detail?: string };
+
+type Props = {
+	title?: string;
+	items: Item[];
+};
+
+const { title = 'Timeline', items } = Astro.props;
+---
+
+<section class="timeline">
+	<h3>{title}</h3>
+	<ol>
+		{items.map((item) => (
+			<li>
+				<span class="date">{item.date}</span>
+				<div>
+					<strong>{item.title}</strong>
+					{item.detail && <p>{item.detail}</p>}
+				</div>
+			</li>
+		))}
+	</ol>
+</section>
+
+<style>
+	.timeline {
+		margin: 2em 0;
+	}
+	.timeline ol {
+		list-style: none;
+		margin: 0;
+		padding: 0 0 0 0.25em;
+		border-left: 2px solid rgb(var(--gray-light));
+	}
+	.timeline li {
+		position: relative;
+		margin: 0 0 1.25em 1.25em;
+	}
+	.timeline li::before {
+		content: '';
+		position: absolute;
+		left: calc(-1.25em - 6px);
+		top: 0.4em;
+		width: 10px;
+		height: 10px;
+		border-radius: 50%;
+		background: var(--paper);
+		border: 2px solid var(--accent);
+	}
+	.timeline .date {
+		font-family: var(--font-mono);
+		font-size: 0.78em;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: rgb(var(--gray));
+	}
+	.timeline p {
+		margin: 0.25em 0 0 0;
+	}
+</style>

@@ -1,0 +1,56 @@
+---
+type Row = { label: string; value: string };
+
+type Props = {
+	title?: string;
+	rows: Row[];
+};
+
+const { title = 'At a glance', rows } = Astro.props;
+---
+
+<section class="metadata">
+	<h3>{title}</h3>
+	<dl>
+		{rows.map((row) => (
+			<div>
+				<dt>{row.label}</dt>
+				<dd>{row.value}</dd>
+			</div>
+		))}
+	</dl>
+</section>
+
+<style>
+	.metadata {
+		margin: 2em 0;
+	}
+	.metadata dl {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+		gap: 0;
+		margin: 0;
+		border: var(--border);
+		border-radius: var(--radius);
+		overflow: hidden;
+	}
+	.metadata dl > div {
+		padding: 0.75em 1em;
+		border-bottom: var(--border);
+	}
+	.metadata dl > div:last-child {
+		border-bottom: none;
+	}
+	.metadata dt {
+		font-family: var(--font-mono);
+		font-size: 0.72em;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: rgb(var(--gray));
+	}
+	.metadata dd {
+		margin: 0.25em 0 0 0;
+		font-weight: 600;
+		color: rgb(var(--black));
+	}
+</style>

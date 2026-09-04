@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://xmirtunjay.github.io/engineering-notebook/sitemap-index.xml

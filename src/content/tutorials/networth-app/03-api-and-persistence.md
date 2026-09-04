@@ -1,0 +1,63 @@
+---
+title: "API and persistence: what happens when you click Save"
+description: "What an API route is, how 21 of them store your data, why input is validated at the door, and why one file holds the whole database."
+series: "networth-app"
+part: 3
+project: "networth-app"
+category: "Finance / FinTech"
+tags: ["nextjs", "api-routes", "sqlite", "zod", "beginners"]
+technologies: ["Next.js 14", "better-sqlite3", "Zod"]
+difficulty: "beginner"
+status: "Active"
+featured: false
+draft: false
+pubDate: 2026-09-04
+---
+
+import Callout from '../../../components/case-study/Callout.astro';
+
+## What is an API route?
+
+When you click Save, the browser doesn't write to the database directly — it sends a **request** ("POST this new asset") to a backend **endpoint**, which validates, stores, and replies. In Next.js, each endpoint is just a file: `src/app/api/assets/route.ts` answers requests to `/api/assets`. Twenty-one such files form the entire backend. No separate server project, no network configuration — files on disk become URLs by convention.
+
+Requests come in four flavors (**CRUD**): GET (read), POST (create), PUT (update), DELETE (delete). Every entity in the app — assets, snapshots, liabilities, goals, transactions, check-ins, scenarios, settings — gets this treatment:
+
+| Routes | What they do |
+| ------ | ------------ |
+| `api/assets` (+ `[id]`) | List/create assets; update; delete archives instead of destroying if snapshots exist |
+| `api/snapshots` (+ `[id]`) | List with gains computed; save one value per asset-month; patch/delete |
+| `api/networth` | Read-only: history plus category breakdown |
+| `api/liabilities`, `api/goals`, `api/transactions` (+ `[id]`) | Standard CRUD for each |
+| `api/checkins` | Monthly notes, one per month (repeat saves update, never duplicate) |
+| `api/scenarios` | Saved what-if configs |
+| `api/forecast` | Server-computed projections from latest data |
+| `api/settings` | Whole preferences map, bulk-saved |
+| `api/export` | Full backup download; full restore |
+| `api/sync` | Push/pull with the cloud copy (Part 5) |
+| `api/auth/*` | Register, login, logout, who-am-I (Part 5) |
+
+## The core pattern: save, then recalculate
+
+Net worth is never stored directly — remember Part 1, snapshots are the source of truth. So every snapshot write does two things: store the value, then recalculate the derived history table in the same request. There is deliberately **no route for writing history**: if clients can't write it, clients can't corrupt it. That is a design decision disguised as an absence.
+
+<Callout type="lesson" title=" habit worth copying">
+  Derived data should have exactly one writer — the recalculation step. The moment two writers exist (say, the client also recomputing), they can disagree, and you own a bug no test will catch easily.
+</Callout>
+
+## Validation at the door
+
+**Zod** is a library that describes acceptable shapes ("a month looks like YYYY-MM", "a rate is 0–100", "names are under 50 characters") and rejects anything else with a 400 error. All schemas live in one file, `src/lib/validation.ts`, and every create/update route checks input through it before touching the database or the engine. The principle: **invalid data fails at the boundary**, so inner layers can assume clean input. When you see a weird error message in the UI, trace it here first.
+
+## One file holds the database
+
+SQLite stores the entire database — every table — in a single file, `networth.db`. No database server to install, no passwords, no ports: copy the file and you have backup; delete it and the app starts empty. That is why this project deploys as "one file plus one command," and why the export feature is just a JSON dump of 11 tables (`{exported_at, version: 1, data}` — the version number tells future import code what shape to expect).
+
+One honest structural note: the base table definitions ship inside that committed database file rather than as code — only later migration deltas live in `src/lib/model/migrations.ts`. It works smoothly for a solo project; a team would want the full schema as code so a fresh machine builds the same database.
+
+## Why these tools
+
+- **better-sqlite3** (synchronous, fast, zero-admin) because the server and the file live on the same machine — no network hop to a database server needed.
+- **Single-file SQLite** because backup equals file copy, the simplest durability story that works.
+- **Zod** because TypeScript types vanish at runtime — they describe code, not incoming JSON. Something must check the wire, and that something is a schema.
+
+In Part 4 we tour the other side: the 15 pages, the shared state, and how the UI stays consistent.

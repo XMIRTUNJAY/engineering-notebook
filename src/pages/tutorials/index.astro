@@ -1,0 +1,64 @@
+---
+import { getCollection } from 'astro:content';
+import RowCard from '../../components/RowCard.astro';
+import Base from '../../layouts/Base.astro';
+import { siteUrl } from '../../lib/site';
+
+const lessons = await getCollection('tutorials', ({ data }) => !data.draft);
+
+type SeriesInfo = { slug: string; count: number; project: string };
+const bySeries = new Map<string, SeriesInfo>();
+for (const lesson of lessons) {
+	const existing = bySeries.get(lesson.data.series);
+	if (existing) {
+		existing.count++;
+	} else {
+		bySeries.set(lesson.data.series, {
+			slug: lesson.data.series,
+			count: 1,
+			project: lesson.data.project,
+		});
+	}
+}
+const seriesList = [...bySeries.values()].sort((a, b) => a.slug.localeCompare(b.slug));
+---
+
+<Base title="Tutorials" description="Multi-part engineering deep dives, each reconstructing a real project.">
+	<div class="prose">
+		<p class="kicker">Tutorials</p>
+		<h1>Rebuilds, explained.</h1>
+		<p class="lede">Multi-part deep dives that reconstruct real projects — architecture, code, failures.</p>
+	</div>
+	<div class="listing">
+		<ul class="row-list">
+			{seriesList.map((series) => (
+				<RowCard
+					kicker={`${series.count} parts`}
+					title={series.slug}
+					href={siteUrl(`/tutorials/${series.slug}/`)}
+					description={`Case study: ${series.project}`}
+					meta={`${series.count} lessons`}
+				/>
+			))}
+		</ul>
+	</div>
+</Base>
+
+<style>
+	.kicker {
+		font-family: var(--font-mono);
+		font-size: 0.78rem;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: var(--accent);
+		font-weight: 700;
+		margin: 0 0 0.5em 0;
+	}
+	.lede {
+		font-size: 1.15em;
+		color: rgb(var(--gray-dark));
+	}
+	.listing {
+		margin-top: var(--space-4);
+	}
+</style>

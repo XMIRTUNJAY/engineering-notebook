@@ -1,6 +1,7 @@
 ---
 import { type CollectionEntry, getCollection, render } from 'astro:content';
-import BlogPost from '../../layouts/BlogPost.astro';
+import Article from '../../layouts/Article.astro';
+import { siteUrl } from '../../lib/site';
 
 export async function getStaticPaths() {
 	const posts = await getCollection('blog');
@@ -15,6 +16,18 @@ const post = Astro.props;
 const { Content } = await render(post);
 ---
 
-<BlogPost {...post.data}>
+<Article
+	title={post.data.title}
+	description={post.data.description}
+	kicker="Writing"
+	meta={[
+		post.data.pubDate.toISOString().slice(0, 10),
+		...(post.data.updatedDate ? [`Updated ${post.data.updatedDate.toISOString().slice(0, 10)}`] : []),
+	]}
+	crumbs={[{ label: 'Writing', href: siteUrl('/blog/') }]}
+	datePublished={post.data.pubDate.toISOString()}
+	dateModified={post.data.updatedDate?.toISOString()}
+	canonicalPath={`/blog/${post.id}/`}
+>
 	<Content />
-</BlogPost>
+</Article>

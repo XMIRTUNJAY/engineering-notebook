@@ -1,0 +1,116 @@
+﻿---
+title: "Wealthpath (networth-app)"
+description: "Personal net-worth tracker and financial planner: Next.js 14, triple storage backend, pure-TS calculation engine with Monte Carlo forecasting."
+repo: ""
+stack: ["Next.js 14", "React 18", "TypeScript", "Tailwind CSS v4", "better-sqlite3", "Dexie/IndexedDB", "PostgreSQL", "React Query", "Recharts", "Vitest", "Playwright"]
+category: "Finance / FinTech"
+status: "Active"
+portfolioScore: 90
+featured: true
+draft: false
+cover: "/case-studies/networth-app/dashboard.png"
+language: "TypeScript"
+---
+
+import ProjectHero from '../../components/case-study/ProjectHero.astro';
+import TechStack from '../../components/case-study/TechStack.astro';
+import ProjectMetadata from '../../components/case-study/ProjectMetadata.astro';
+import ScreenshotGallery from '../../components/case-study/ScreenshotGallery.astro';
+import DemoVideo from '../../components/case-study/DemoVideo.astro';
+import ArchitectureDiagram from '../../components/case-study/ArchitectureDiagram.astro';
+import Callout from '../../components/case-study/Callout.astro';
+import EvidenceBar from '../../components/case-study/EvidenceBar.astro';
+import { siteUrl } from '../../lib/site';
+
+<ProjectHero
+  title="Wealthpath"
+  subtitle="A personal net-worth tracker and financial-independence planner that works fully offline, derives everything from monthly snapshots, and forecasts with Monte Carlo bands instead of single-number fantasies."
+  status="Active"
+  category="Finance / FinTech"
+  score={90}
+  image={siteUrl('/case-studies/networth-app/dashboard.png')}
+  imageAlt="Wealthpath dashboard: net-worth hero, stat cards, and wealth-over-time chart"
+  imageCaption="Dashboard after five months of snapshots: derived net-worth hero, liquid/investable/runway cards, journey chart. Click to enlarge."
+  meta={[
+    { label: 'Code files', value: '123 TypeScript' },
+    { label: 'Unit tests', value: '40 / 40 passing' },
+    { label: 'UI pages', value: '15 routes' },
+    { label: 'API routes', value: '21 files' },
+  ]}
+/>
+
+<TechStack items={['Next.js 14', 'React 18', 'TypeScript', 'Tailwind CSS v4', 'better-sqlite3', 'Dexie / IndexedDB', 'PostgreSQL', 'React Query', 'Recharts', 'Vitest', 'Playwright']} />
+
+<EvidenceBar items={[
+  { label: 'Unit tests', value: '40 / 40 passing' },
+  { label: 'Screenshots', value: '3 verified live' },
+  { label: 'Demo video', value: '3:38 narrated tour' },
+  { label: 'Measured', value: '2026-09-04' },
+]} />
+
+## What
+
+Wealthpath answers one question honestly: *where do I stand, and when can I stop?* Assets, liabilities, goals, and transactions CRUD. A 4-step monthly check-in wizard. Forecasting with optimistic/expected/conservative bands plus seeded Monte Carlo p10/p50/p90. What-if scenarios, a standalone calculator suite, CSV/Excel import, full JSON export, and opt-in Postgres cloud sync. Solo-user, desktop/self-host oriented.
+
+<ProjectMetadata rows={[
+  { label: 'Language', value: 'TypeScript (strict)' },
+  { label: 'Framework', value: 'Next.js 14 App Router' },
+  { label: 'Storage', value: 'SQLite + IndexedDB + Postgres' },
+  { label: 'State', value: 'React Query + NetWorthContext' },
+  { label: 'Deploy', value: 'next start (standalone) + Compose' },
+  { label: 'Tests', value: 'Vitest + CRUD smoke + Playwright e2e' },
+]} />
+
+## Why this shape
+
+Four constraints drove every decision: financial data must work with zero cloud dependency; a solo user means sync can be last-write-wins; money math must be unit-tested; deployment must be a SQLite file plus `next start`. The result: three storage backends behind one fetch interposer (`local-bridge.ts`), a framework-free calculation engine (`src/lib/engine/`), and 21 API route files with zod validation. Details live in the tutorial series below.
+
+<Callout type="decision" title="Why three databases">
+  A single hosted database would violate the privacy constraint; localStorage-only would cap query power and durability. So: server SQLite with migrations, a browser IndexedDB mirror, and Postgres purely for opt-in sync.
+</Callout>
+
+## Demo
+
+Screenshots and video captured from a live local run against fictional demo data (verified 2026-09-04). No real financial figures appear anywhere on this page.
+
+<ScreenshotGallery
+  title="In action"
+  shots={[
+    { src: siteUrl('/case-studies/networth-app/dashboard.png'), alt: 'Wealthpath dashboard showing net worth hero, stat cards, and wealth-over-time chart', caption: 'Dashboard: net-worth hero, liquid/investable/runway cards, journey chart.' },
+    { src: siteUrl('/case-studies/networth-app/checkin.png'), alt: 'Monthly check-in wizard step 1 with per-asset value inputs', caption: 'Check-in wizard: per-asset values feed the monthly snapshots.' },
+    { src: siteUrl('/case-studies/networth-app/scenarios.png'), alt: 'What-if scenarios comparing baseline and modified FI projections', caption: 'Scenarios: baseline vs modified FI projection, simulated without touching real data.' },
+  ]}
+/>
+
+<DemoVideo
+  title="Video walkthrough"
+  src={siteUrl('/demos/networth-app.mp4')}
+  note="Narrated tour recorded 2026-09-04 from a live local run with fictional demo data: all 14 tabs — dashboard, portfolio, assets, liabilities, goals, forecast, FI, scenarios, cash flow, check-in, tools, import, settings, privacy — with voiceover explaining each feature."
+/>
+
+## Architecture at a glance
+
+<ArchitectureDiagram
+  title="System architecture"
+  chart={`flowchart LR
+    subgraph Client["Browser (Next.js App Router)"]
+        UI["15 pages + components"]
+        CTX["NetWorthContext + React Query"]
+        BR["local-bridge.ts"]
+        DEX["Dexie / IndexedDB"]
+    end
+    subgraph Server["Next.js server"]
+        R["21 API route files"]
+        DB[("networth.db")]
+    end
+    PG[("PostgreSQL (sync only)")]
+    UI --> CTX --> BR
+    BR -->|server mode| R --> DB
+    BR -->|local mode| DEX
+    R -->|push/pull LWW| PG`}
+  caption="One UI, two backends. The bridge interposes on fetch; the engine computes; snapshots are the source of truth."
+/>
+
+## Go deeper
+
+The six-part tutorial series reconstructs this project layer by layer: problem and architecture, the calculation engine, API and persistence, the client tour, offline and sync, then failures, testing, and verdict. Start with <a href={siteUrl('/tutorials/networth-app/01-problem-and-architecture/')}>Part 1: problem and architecture</a>.

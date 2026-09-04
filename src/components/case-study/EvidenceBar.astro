@@ -1,0 +1,51 @@
+---
+type Item = { label: string; value: string };
+
+type Props = {
+	items: Item[];
+};
+
+const { items } = Astro.props;
+---
+
+<dl class="evidence-bar" aria-label="Evidence for this case study">
+	{items.map((item) => (
+		<div>
+			<dt>{item.label}</dt>
+			<dd>{item.value}</dd>
+		</div>
+	))}
+</dl>
+
+<style>
+	.evidence-bar {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0;
+		margin: 1.5em 0;
+		border: var(--border);
+		border-radius: var(--radius);
+		overflow: hidden;
+	}
+	.evidence-bar > div {
+		flex: 1 1 140px;
+		padding: 0.7em 1em;
+		border-left: var(--border);
+	}
+	.evidence-bar > div:first-child {
+		border-left: none;
+	}
+	.evidence-bar dt {
+		font-family: var(--font-mono);
+		font-size: 0.7em;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: rgb(var(--gray));
+	}
+	.evidence-bar dd {
+		margin: 0.2em 0 0 0;
+		font-weight: 700;
+		font-size: 0.95em;
+		color: rgb(var(--black));
+	}
+</style>

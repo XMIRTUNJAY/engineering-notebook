@@ -1,0 +1,87 @@
+---
+title: "The problem: a net-worth tracker that works offline and tells the truth"
+description: "Why Wealthpath exists, the constraints that shaped it, and the architecture they led to — explained for newcomers to web development."
+series: "networth-app"
+part: 1
+project: "networth-app"
+category: "Finance / FinTech"
+tags: ["nextjs", "architecture", "sqlite", "offline-first", "beginners"]
+technologies: ["Next.js 14", "TypeScript", "better-sqlite3", "Dexie", "PostgreSQL"]
+difficulty: "beginner"
+status: "Active"
+featured: true
+draft: false
+pubDate: 2026-09-04
+---
+
+import ArchitectureDiagram from '../../../components/case-study/ArchitectureDiagram.astro';
+import Callout from '../../../components/case-study/Callout.astro';
+
+## What are we looking at?
+
+Wealthpath is a personal finance planner: it tracks what you own (assets), what you owe (liabilities), and what you are saving toward (goals). Once a month you record each asset's value — a **snapshot** — and the app derives your net worth, charts your journey, and forecasts when you could stop working. This six-part series rebuilds it layer by layer so you can see how a structured real-world project fits together.
+
+If you are new to web development, here are the only three ideas you need for this part:
+
+- **Frontend** is the code running in your browser: pages, buttons, charts.
+- **Backend** is the code running on a server: it stores data and answers requests.
+- **A database** is the backend's filing cabinet: tables of rows, like spreadsheets with rules.
+
+## The problem
+
+Spreadsheets drift — versions multiply, formulas break silently. Banking apps show balances, not trajectories: they tell you what you have, never when you are free. The problem Wealthpath solves: one place that records monthly money snapshots, derives net worth from them, and forecasts financial independence — without requiring your data to live on someone else's server.
+
+## Constraints: decisions before code
+
+Every important decision in this project traces back to four constraints. Read them first; everything below is just consequences:
+
+1. **Privacy.** Financial data must work with zero cloud dependency (a local mode).
+2. **One user.** No login walls, no multi-user conflicts — sync can simply keep the latest change.
+3. **Correctness.** Money math must be tested; projections must show ranges, never false precision.
+4. **Self-hostable.** Deployment should be one file plus one command.
+
+<Callout type="lesson" title=" habit worth copying">
+  Write constraints before code. When a decision is hard later ("which database?"), you re-read the constraints and the answer is usually there. This project chose three databases for exactly this reason — keep reading.
+</Callout>
+
+## Why these tools
+
+| Tool | What it is | Why this project uses it |
+| ---- | ---------- | ------------------------ |
+| Next.js 14 | A React framework that serves pages **and** backend endpoints from one codebase | One project holds the whole app; no separate frontend/backend repos |
+| TypeScript | JavaScript with types — the editor catches mistakes before you run | Money code with wrong types is how finance bugs are born |
+| better-sqlite3 | A fast library that stores data in a single local file | Zero-admin persistence: the database is literally `networth.db` |
+| Dexie / IndexedDB | A database built into every browser | Powers local mode — the app works with no server at all |
+| PostgreSQL | A production-grade database server | Opt-in cloud sync only; runs locally via Docker Compose on port 5544 |
+| Zod | A schema library that validates incoming data | Bad input is rejected at the API boundary, never inside calculations |
+
+A single hosted database would violate constraint 1. Browser `localStorage` alone would violate durability and query power — hence a real SQLite file with migrations plus an IndexedDB mirror.
+
+## The pivotal mechanism
+
+`src/lib/local-bridge.ts` sits between the UI and data: every data request (`fetch('/api/...')`) passes through it, and it routes each call either to the Next.js API routes (server mode) or to Dexie (local mode). One UI, two backends, and switching modes rewrites zero components. Part 5 is entirely about this file.
+
+## Architecture
+
+<ArchitectureDiagram
+  title="System architecture"
+  chart={`flowchart LR
+    subgraph Client["Browser"]
+        UI["15 pages + components"]
+        CTX["NetWorthContext + React Query"]
+        BR["local-bridge.ts"]
+        DEX["Dexie / IndexedDB"]
+    end
+    subgraph Server["Next.js server"]
+        BR -->|server mode| API["21 API route files"]
+        API --> SQLITE[("networth.db")]
+        API --> PG[("PostgreSQL (sync only)")]
+    end
+    UI --> CTX --> BR
+    BR -->|local mode| DEX`}
+  caption="Follow any button click: UI state, through the bridge, to SQLite or Dexie — or Postgres when syncing."
+/>
+
+The data model mirrors across SQLite and Dexie: `assets`, `monthly_snapshots`, `net_worth_history`, `liabilities`, `goals`, `settings`, plus transactions, check-ins, and scenarios. One rule governs it all: **snapshots are the source of truth** — net worth is always derived from per-asset monthly snapshots, and the history table is a recalculated cache, never an input.
+
+In Part 2 we open the calculation engine: eight small modules of pure math, each tested, each explainable on its own.

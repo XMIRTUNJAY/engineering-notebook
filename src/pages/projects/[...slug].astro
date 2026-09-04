@@ -1,0 +1,105 @@
+---
+import { type CollectionEntry, getCollection, render } from 'astro:content';
+import JsonLd from '../../components/JsonLd.astro';
+import TableOfContents from '../../components/TableOfContents.astro';
+import Base from '../../layouts/Base.astro';
+import { siteUrl } from '../../lib/site';
+
+export async function getStaticPaths() {
+	const projects = await getCollection('projects', ({ data }) => !data.draft);
+	return projects.map((project) => ({
+		params: { slug: project.id },
+		props: project,
+	}));
+}
+type Props = CollectionEntry<'projects'>;
+
+const project = Astro.props;
+const { Content } = await render(project);
+
+// Tutorials linked to this project, ordered by series then part.
+const lessons = (
+	await getCollection('tutorials', ({ data }) => !data.draft && data.project === project.id)
+).sort((a, b) => a.data.series.localeCompare(b.data.series) || a.data.part - b.data.part);
+
+const seriesOrder: string[] = [...new Set(lessons.map((l) => l.data.series))];
+---
+
+<Base
+	title={project.data.title}
+	description={project.data.description}
+	ogImage={project.data.cover ? siteUrl(project.data.cover) : undefined}
+>
+	<JsonLd
+		headline={project.data.title}
+		description={project.data.description}
+		dateModified={project.data.updatedDate?.toISOString()}
+		url={`https://xmirtunjay.github.io/engineering-notebook/projects/${project.id}/`}
+		tags={project.data.stack}
+	/>
+	<div class="case-grid">
+		<div class="case-body" data-article-body>
+			<p class="back">
+				<a href={siteUrl('/projects/')}>&larr; All projects</a>
+			</p>
+			<Content />
+		{lessons.length > 0 && (
+			<section class="series">
+				<h2>Tutorial series</h2>
+				{seriesOrder.map((series) => (
+					<>
+						<h3>
+							<a href={siteUrl(`/tutorials/${series}/`)}>{series}</a>
+						</h3>
+						<ol>
+							{lessons
+								.filter((l) => l.data.series === series)
+								.map((l) => (
+									<li>
+										<a href={siteUrl(`/tutorials/${l.data.series}/${l.id.split('/').slice(1).join('/')}/`)}>
+											Part {l.data.part}: {l.data.title}
+										</a>
+									</li>
+								))}
+						</ol>
+					</>
+				))}
+			</section>
+		)}
+		</div>
+		<TableOfContents />
+	</div>
+</Base>
+
+<style>
+	.case-grid {
+		display: grid;
+		grid-template-columns: minmax(0, var(--measure)) 220px;
+		gap: 3rem;
+		justify-content: center;
+		align-items: start;
+	}
+	.case-body {
+		min-width: 0;
+	}
+	.back {
+		font-family: var(--font-mono);
+		font-size: 0.8rem;
+	}
+	.series {
+		margin-top: var(--space-5);
+		padding-top: var(--space-3);
+		border-top: var(--border);
+	}
+	.series ol {
+		padding-left: 1.25em;
+	}
+	.series li {
+		margin: 0.4em 0;
+	}
+	@media (max-width: 1024px) {
+		.case-grid {
+			grid-template-columns: minmax(0, var(--measure));
+		}
+	}
+</style>

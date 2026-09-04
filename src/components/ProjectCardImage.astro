@@ -1,0 +1,179 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { siteUrl } from '../lib/site';
+
+type Props = {
+	project: CollectionEntry<'projects'>;
+	lessonCount?: number;
+};
+
+const { project, lessonCount } = Astro.props;
+const { data } = project;
+
+// GitHub-linguist-inspired language dot colors.
+const languageColors: Record<string, string> = {
+	TypeScript: '#3178c6',
+	JavaScript: '#f1e05a',
+	Python: '#3572a5',
+	SQL: '#e38c00',
+	Go: '#00add8',
+	Rust: '#dea584',
+	Java: '#b07219',
+	HTML: '#e34c26',
+	CSS: '#563d7c',
+	Shell: '#89e051',
+	'C#': '#178600',
+	'C++': '#f34b7d',
+	Kotlin: '#a97bff',
+	R: '#198ce7',
+	Vue: '#41b883',
+	Svelte: '#ff3e00',
+	Astro: '#ff5d01',
+};
+const dotColor = (data.language && languageColors[data.language]) || 'rgb(var(--gray))';
+const langLower = (data.language ?? '').toLowerCase();
+const rest = data.stack.filter((tech) => tech.toLowerCase() !== langLower);
+const badges = rest.slice(0, 4);
+const extra = rest.length - badges.length;
+---
+
+<li class="project-card">
+	<a href={siteUrl(`/projects/${project.id}/`)}>
+		{data.cover ? (
+			<img src={siteUrl(data.cover)} alt={`${data.title} screenshot`} loading="lazy" decoding="async" />
+		) : (
+			<div class="cover-fallback" aria-hidden="true">
+				<span>{data.title.charAt(0)}</span>
+			</div>
+		)}
+		<div class="card-body">
+			<span class="row-kicker">{data.category}</span>
+			<h3>
+				{data.title}
+				<span class="go" aria-hidden="true">&rarr;</span>
+			</h3>
+			<p class="row-desc clamp-3">{data.description}</p>
+			<ul class="badge-row" aria-label="Languages and technologies">
+				{data.language && (
+					<li class="badge lang">
+						<span class="dot" style={`background-color: ${dotColor}`}></span>
+						{data.language}
+					</li>
+				)}
+				{badges.map((tech) => (
+					<li class="badge">{tech}</li>
+				))}
+				{extra > 0 && <li class="badge more">+{extra}</li>}
+			</ul>
+			<span class="row-meta">
+				{data.status}
+				{lessonCount !== undefined && lessonCount > 0 && ` · ${lessonCount} tutorial parts`}
+			</span>
+		</div>
+	</a>
+</li>
+
+<style>
+	.project-card {
+		border: var(--border);
+		border-radius: var(--radius);
+		overflow: hidden;
+		background: var(--card);
+		transition: border-color 0.15s ease, transform 0.15s ease;
+	}
+	.project-card a {
+		display: flex;
+		flex-direction: column;
+		text-decoration: none;
+		color: inherit;
+		height: 100%;
+	}
+	.project-card a:hover {
+		border-color: var(--accent);
+	}
+	.project-card:hover {
+		transform: translateY(-2px);
+	}
+	.project-card img {
+		display: block;
+		width: 100%;
+		aspect-ratio: 16 / 9;
+		object-fit: cover;
+		object-position: top;
+		border-radius: 0;
+		border-bottom: var(--border);
+		box-shadow: inset 0 0 0 1px rgb(var(--gray-light));
+	}
+	[data-theme='dark'] .project-card img {
+		filter: brightness(0.92);
+	}
+	.cover-fallback {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		aspect-ratio: 16 / 9;
+		border-bottom: var(--border);
+		background: var(--code-bg);
+	}
+	.cover-fallback span {
+		font-family: var(--font-display);
+		font-size: 3rem;
+		color: rgb(var(--gray));
+	}
+	.project-card a:hover h3 {
+		color: var(--accent);
+	}
+	.card-body {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		padding: 1.25em 1.25em 1.1em 1.25em;
+	}
+	.card-body h3 {
+		font-size: 1.3rem;
+		margin: 0.25em 0;
+	}
+	.go {
+		opacity: 0;
+		transition: opacity 0.15s ease;
+		color: var(--accent);
+	}
+	.project-card a:hover .go,
+	.project-card a:focus-visible .go {
+		opacity: 1;
+	}
+	.badge-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4em;
+		margin: 0.9em 0 0.75em 0;
+		padding: 0;
+		list-style: none;
+	}
+	.badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4em;
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		padding: 0.28em 0.75em;
+		border-radius: 6px;
+		border: var(--border);
+		background: var(--paper);
+		color: rgb(var(--gray-dark));
+		white-space: nowrap;
+	}
+	.badge.more {
+		color: rgb(var(--gray));
+	}
+	.dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		flex: none;
+	}
+	.row-meta {
+		margin-top: auto;
+		padding-top: 0.5em;
+	}
+</style>

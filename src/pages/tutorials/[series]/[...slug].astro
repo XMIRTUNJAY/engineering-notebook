@@ -1,0 +1,66 @@
+---
+import { type CollectionEntry, getCollection, render } from 'astro:content';
+import Article from '../../../layouts/Article.astro';
+import { siteUrl } from '../../../lib/site';
+
+export async function getStaticPaths() {
+	const lessons = await getCollection('tutorials', ({ data }) => !data.draft);
+	const projects = await getCollection('projects', ({ data }) => !data.draft);
+	const projectById = new Map(projects.map((p) => [p.id, p]));
+	return lessons.map((lesson) => {
+		const slug = lesson.id.split('/').slice(1).join('/');
+		const siblings = lessons
+			.filter((l) => l.data.series === lesson.data.series)
+			.sort((a, b) => a.data.part - b.data.part);
+		const index = siblings.findIndex((l) => l.id === lesson.id);
+		const toLink = (entry: CollectionEntry<'tutorials'> | undefined) =>
+			entry
+				? {
+						href: siteUrl(
+							`/tutorials/${entry.data.series}/${entry.id.split('/').slice(1).join('/')}/`,
+						),
+						label: `Part ${entry.data.part}: ${entry.data.title}`,
+					}
+				: null;
+		return {
+			params: { series: lesson.data.series, slug },
+			props: {
+				lesson,
+				siblings,
+				prev: toLink(siblings[index - 1]),
+				next: toLink(siblings[index + 1]),
+				project: projectById.get(lesson.data.project) ?? null,
+			},
+		};
+	});
+}
+
+const { lesson, siblings, prev, next, project } = Astro.props;
+const { Content } = await render(lesson);
+const seriesTitle = project?.data.title ?? lesson.data.series;
+---
+
+<Article
+	title={lesson.data.title}
+	description={lesson.data.description}
+	kicker={`${seriesTitle} · Part ${lesson.data.part} of ${siblings.length}`}
+	meta={[
+		lesson.data.pubDate.toISOString().slice(0, 10),
+		lesson.data.difficulty,
+		...(lesson.data.technologies.length > 0 ? [lesson.data.technologies.join(', ')] : []),
+	]}
+	tags={lesson.data.tags}
+	crumbs={[
+		{ label: 'Tutorials', href: siteUrl('/tutorials/') },
+		{ label: seriesTitle, href: siteUrl(`/tutorials/${lesson.data.series}/`) },
+	]}
+	ogImage={project?.data.cover ? siteUrl(project.data.cover) : undefined}
+	datePublished={lesson.data.pubDate.toISOString()}
+	dateModified={lesson.data.updatedDate?.toISOString()}
+	canonicalPath={`/tutorials/${lesson.data.series}/${lesson.id.split('/').slice(1).join('/')}/`}
+	seriesNav={{ label: `${seriesTitle} series`, href: siteUrl(`/tutorials/${lesson.data.series}/`) }}
+	prev={prev}
+	next={next}
+>
+	<Content />
+</Article>

@@ -1,0 +1,86 @@
+---
+type Props = {
+	title: string;
+	file: string;
+	language?: string;
+	what?: string;
+	why?: string;
+	tradeoff?: string;
+};
+
+const { title, file, language = 'ts', what, why, tradeoff } = Astro.props;
+---
+
+<figure class="code-example">
+	<figcaption>
+		<span class="code-title">{title}</span>
+		<code class="code-file">{file}</code>
+	</figcaption>
+	<div class="code-body">
+		<slot />
+	</div>
+	{(what || why || tradeoff) && (
+		<div class="code-notes">
+			{what && (
+				<p>
+					<strong>What.</strong> {what}
+				</p>
+			)}
+			{why && (
+				<p>
+					<strong>Why.</strong> {why}
+				</p>
+			)}
+			{tradeoff && (
+				<p>
+					<strong>Tradeoff.</strong> {tradeoff}
+				</p>
+			)}
+		</div>
+	)}
+</figure>
+
+<style>
+	.code-example {
+		margin: 1.5em 0;
+		border: var(--border);
+		border-radius: var(--radius);
+		overflow: hidden;
+	}
+	.code-example figcaption {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: 1em;
+		padding: 0.6em 1em;
+		border-bottom: var(--border);
+		background: var(--card);
+	}
+	.code-title {
+		font-weight: 700;
+		color: rgb(var(--black));
+	}
+	.code-file {
+		font-size: 0.78em;
+		color: rgb(var(--gray));
+	}
+	.code-body pre {
+		margin: 0;
+		border: none;
+		border-radius: 0;
+	}
+	.code-notes {
+		padding: 0.75em 1em;
+		font-size: 0.92em;
+		border-top: var(--border);
+	}
+	.code-notes p {
+		margin: 0.4em 0;
+	}
+	.code-notes p:first-child {
+		margin-top: 0;
+	}
+	.code-notes p:last-child {
+		margin-bottom: 0;
+	}
+</style>

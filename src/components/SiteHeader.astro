@@ -1,0 +1,178 @@
+---
+import { siteUrl } from '../lib/site';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const current = Astro.url.pathname.replace(import.meta.env.BASE_URL, '').replace(/\/$/, '');
+
+const links = [
+	{ href: `${base}/projects`, label: 'Projects', match: 'projects' },
+	{ href: `${base}/blog`, label: 'Writing', match: 'blog' },
+	{ href: `${base}/tutorials`, label: 'Tutorials', match: 'tutorials' },
+	{ href: `${base}/experiments`, label: 'Experiments', match: 'experiments' },
+	{ href: `${base}/about`, label: 'About', match: 'about' },
+];
+---
+
+<header class="site-header">
+	<nav aria-label="Primary">
+		<a class="brand" href={siteUrl('/')}>Engineering Notebook</a>
+		<button class="menu-btn" aria-expanded="false" aria-controls="site-nav" aria-label="Menu">
+			<span aria-hidden="true"></span>
+			<span aria-hidden="true"></span>
+		</button>
+		<div class="nav-links" id="site-nav">
+			{links.map((link) => (
+				<a
+					href={link.href}
+					aria-current={current === link.match || current.startsWith(link.match + '/') ? 'page' : undefined}
+				>
+					{link.label}
+				</a>
+			))}
+			<a href="https://github.com/xmirtunjay" target="_blank" rel="noopener">GitHub</a>
+			<button class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode">&#9788;</button>
+		</div>
+	</nav>
+	<div class="read-progress" data-read-progress aria-hidden="true"></div>
+</header>
+
+<script>
+	const btn = document.querySelector('.menu-btn');
+	const nav = document.querySelector('#site-nav');
+	btn?.addEventListener('click', () => {
+		const open = nav?.classList.toggle('open');
+		btn.setAttribute('aria-expanded', String(!!open));
+	});
+	function currentTheme(): string {
+		return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+	}
+	function paintButton(): void {
+		document.querySelectorAll('[data-theme-toggle]').forEach((b) => {
+			b.textContent = currentTheme() === 'dark' ? '\u2600' : '\u263E';
+		});
+	}
+	function toggleTheme(): void {
+		const next = currentTheme() === 'dark' ? 'light' : 'dark';
+		document.documentElement.dataset.theme = next;
+		try {
+			localStorage.setItem('theme', next);
+		} catch (e) {
+			/* storage unavailable */
+		}
+		paintButton();
+	}
+	document.querySelectorAll('[data-theme-toggle]').forEach((b) => {
+		b.addEventListener('click', toggleTheme);
+	});
+	paintButton();
+	// Reading progress: article scroll fraction, no animation.
+	const bar = document.querySelector('[data-read-progress]') as HTMLElement | null;
+	function paintProgress(): void {
+		if (!bar) return;
+		const max = document.documentElement.scrollHeight - window.innerHeight;
+		bar.style.width = max > 0 ? `${Math.min(100, (window.scrollY / max) * 100)}%` : '0';
+	}
+	window.addEventListener('scroll', paintProgress, { passive: true });
+	paintProgress();
+</script>
+
+<style>
+	.site-header {
+		border-bottom: var(--border);
+		background: var(--paper);
+		position: sticky;
+		top: 0;
+		z-index: 50;
+	}
+	.site-header nav {
+		width: var(--measure-wide);
+		max-width: calc(100% - 2em);
+		margin: auto;
+		padding: 0 1em;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		min-height: 60px;
+		gap: 1em;
+	}
+	.brand {
+		font-family: var(--font-display);
+		font-weight: 700;
+		font-size: 1.1rem;
+		color: rgb(var(--black));
+		text-decoration: none;
+		white-space: nowrap;
+	}
+	.nav-links {
+		display: flex;
+		align-items: center;
+		gap: 0.25em;
+	}
+	.nav-links a {
+		color: rgb(var(--gray-dark));
+		text-decoration: none;
+		font-size: 0.95rem;
+		padding: 0.4em 0.7em;
+		border-radius: 6px;
+	}
+	.nav-links a:hover {
+		color: rgb(var(--black));
+		background: rgb(var(--gray-light));
+	}
+	.nav-links a[aria-current='page'] {
+		color: rgb(var(--black));
+		font-weight: 700;
+	}
+	.menu-btn {
+		display: none;
+		flex-direction: column;
+		gap: 5px;
+		background: transparent;
+		border: var(--border);
+		border-radius: 6px;
+		padding: 0.6em 0.7em;
+		cursor: pointer;
+	}
+	.menu-btn span {
+		display: block;
+		width: 18px;
+		height: 2px;
+		background: rgb(var(--black));
+	}
+	.read-progress {
+		height: 2px;
+		background: var(--accent);
+		width: 0;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.read-progress {
+			display: none;
+		}
+	}
+	@media (max-width: 760px) {
+		.menu-btn {
+			display: flex;
+		}
+		.nav-links {
+			display: none;
+			position: absolute;
+			top: 60px;
+			left: 0;
+			right: 0;
+			flex-direction: column;
+			align-items: stretch;
+			background: var(--paper);
+			border-bottom: var(--border);
+			padding: 0.5em 1em 1em 1em;
+			gap: 0;
+		}
+		.nav-links.open {
+			display: flex;
+		}
+		.nav-links a,
+		.nav-links .theme-toggle {
+			padding: 0.7em 0.5em;
+			text-align: left;
+		}
+	}
+</style>

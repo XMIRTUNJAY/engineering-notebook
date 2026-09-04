@@ -1,0 +1,130 @@
+---
+---
+
+<aside class="toc" aria-label="Table of contents">
+	<details class="toc-mobile">
+		<summary>On this page</summary>
+		<nav class="toc-nav" data-toc></nav>
+	</details>
+	<nav class="toc-desktop" data-toc></nav>
+</aside>
+
+<script>
+	(function () {
+		var article = document.querySelector('[data-article-body]');
+		if (!article) return;
+		var headings = article.querySelectorAll('h2, h3');
+		if (headings.length < 2) return;
+		document.querySelectorAll('[data-toc]').forEach(function (nav) {
+			var list = document.createElement('ol');
+			headings.forEach(function (h) {
+				var el = h as HTMLElement;
+				if (!el.id) {
+					el.id = el.textContent
+						.trim()
+						.toLowerCase()
+						.replace(/[^a-z0-9\s-]/g, '')
+						.replace(/\s+/g, '-');
+				}
+				var li = document.createElement('li');
+				if (el.tagName === 'H3') li.className = 'toc-h3';
+				var a = document.createElement('a');
+				a.href = '#' + el.id;
+				a.textContent = el.textContent;
+				a.dataset.target = el.id;
+				li.appendChild(a);
+				list.appendChild(li);
+			});
+			nav.appendChild(list);
+		});
+		// Scrollspy.
+		var links = Array.from(document.querySelectorAll('[data-toc] a')) as HTMLAnchorElement[];
+		var map = new Map<string, HTMLAnchorElement[]>();
+		links.forEach(function (a) {
+			var arr = map.get(a.dataset.target || '') || [];
+			arr.push(a);
+			map.set(a.dataset.target || '', arr);
+		});
+		var observer = new IntersectionObserver(
+			function (entries) {
+				entries.forEach(function (entry) {
+					if (!entry.isIntersecting) return;
+					links.forEach(function (a) {
+						a.classList.toggle('active', a.dataset.target === (entry.target as HTMLElement).id);
+					});
+				});
+			},
+			{ rootMargin: '-20% 0px -70% 0px' }
+		);
+		headings.forEach(function (h) {
+			observer.observe(h);
+		});
+	})();
+</script>
+
+<style>
+	.toc-desktop {
+		position: sticky;
+		top: 84px;
+		font-size: 0.85rem;
+		max-height: calc(100vh - 120px);
+		overflow-y: auto;
+	}
+	.toc-desktop:empty {
+		display: none;
+	}
+	.toc-desktop ol {
+		list-style: none;
+		margin: 0;
+		padding: 0 0 0 1em;
+		border-left: var(--border);
+	}
+	.toc-desktop li {
+		margin: 0.35em 0;
+	}
+	.toc-desktop li.toc-h3 {
+		padding-left: 1em;
+	}
+	.toc-desktop a {
+		color: rgb(var(--gray));
+		text-decoration: none;
+	}
+	.toc-desktop a:hover {
+		color: rgb(var(--black));
+	}
+	.toc-desktop a.active {
+		color: var(--accent);
+		font-weight: 700;
+	}
+	.toc-mobile {
+		display: none;
+		border: var(--border);
+		border-radius: var(--radius);
+		padding: 0.5em 1em;
+		margin-bottom: 1.5em;
+	}
+	.toc-mobile summary {
+		cursor: pointer;
+		font-weight: 700;
+	}
+	.toc-mobile .toc-nav ol {
+		list-style: none;
+		margin: 0.75em 0 0.25em 0;
+		padding: 0;
+	}
+	.toc-mobile .toc-nav li {
+		margin: 0.3em 0;
+	}
+	.toc-mobile .toc-nav a {
+		color: rgb(var(--gray-dark));
+		text-decoration: none;
+	}
+	@media (max-width: 1024px) {
+		.toc-desktop {
+			display: none;
+		}
+		.toc-mobile {
+			display: block;
+		}
+	}
+</style>

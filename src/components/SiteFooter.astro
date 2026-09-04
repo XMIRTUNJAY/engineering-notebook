@@ -1,0 +1,41 @@
+---
+import { siteUrl } from '../lib/site';
+---
+
+<footer class="site-footer">
+	<nav aria-label="Footer">
+		<a href="https://github.com/xmirtunjay" target="_blank" rel="noopener">GitHub</a>
+		<a href={siteUrl('/rss.xml')}>RSS</a>
+		<a href={siteUrl('/about/')}>About</a>
+	</nav>
+	<p>Engineering notes on data systems, AI agents, and the tools I build to understand them.</p>
+</footer>
+
+<style>
+	.site-footer {
+		width: var(--measure-wide);
+		max-width: calc(100% - 2em);
+		margin: auto;
+		padding: var(--space-5) 1em;
+		border-top: var(--border);
+		margin-top: var(--space-6);
+	}
+	.site-footer nav {
+		display: flex;
+		gap: 1.25em;
+		margin-bottom: 0.75em;
+	}
+	.site-footer nav a {
+		color: rgb(var(--gray-dark));
+		text-decoration: none;
+		font-size: 0.9rem;
+	}
+	.site-footer nav a:hover {
+		color: var(--accent);
+	}
+	.site-footer p {
+		margin: 0;
+		font-size: 0.9rem;
+		color: rgb(var(--gray));
+	}
+</style>

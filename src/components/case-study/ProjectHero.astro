@@ -1,0 +1,134 @@
+---
+type Props = {
+	title: string;
+	subtitle: string;
+	status?: string;
+	category?: string;
+	score?: number;
+	repoUrl?: string;
+	demoUrl?: string;
+	image?: string;
+	imageAlt?: string;
+	imageCaption?: string;
+	meta?: Array<{ label: string; value: string }>;
+};
+
+const { title, subtitle, status, category, score, repoUrl, demoUrl, image, imageAlt, imageCaption, meta = [] } = Astro.props;
+---
+
+<section class="hero">
+	<div class="eyebrow">
+		{category && <span class="kicker">{category}</span>}
+		{status && <span class="kicker dim">{status}</span>}
+		{score !== undefined && <span class="kicker">Portfolio {score}/100</span>}
+	</div>
+	<h1>{title}</h1>
+	<p class="subtitle">{subtitle}</p>
+	{(repoUrl || demoUrl) && (
+		<div class="actions">
+			{repoUrl && (
+				<a href={repoUrl} target="_blank" rel="noopener">
+					Repository &rarr;
+				</a>
+			)}
+			{demoUrl && (
+				<a href={demoUrl} target="_blank" rel="noopener">
+					Live demo &rarr;
+				</a>
+			)}
+		</div>
+	)}
+	{image && (
+		<figure class="hero-shot">
+			<a href={image} data-lightbox data-lightbox-full={image} data-lightbox-cap={imageCaption ?? imageAlt ?? title}>
+				<img src={image} alt={imageAlt ?? `${title} screenshot`} decoding="async" />
+			</a>
+			{imageCaption && <figcaption>{imageCaption}</figcaption>}
+		</figure>
+	)}
+	{meta.length > 0 && (
+		<dl class="meta-grid">
+			{meta.map((m) => (
+				<div>
+					<dt>{m.label}</dt>
+					<dd>{m.value}</dd>
+				</div>
+			))}
+		</dl>
+	)}
+</section>
+
+<style>
+	.hero {
+		margin: 0 0 2em 0;
+		padding-bottom: 1.5em;
+		border-bottom: var(--border);
+	}
+	.eyebrow {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5em 1em;
+		margin-bottom: 0.75em;
+	}
+	.kicker {
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: var(--accent);
+		font-weight: 700;
+	}
+	.kicker.dim {
+		color: rgb(var(--gray));
+	}
+	.hero h1 {
+		margin-top: 0;
+	}
+	.subtitle {
+		font-size: 1.2em;
+		line-height: 1.6;
+		color: rgb(var(--gray-dark));
+		max-width: 36em;
+	}
+	.actions {
+		display: flex;
+		gap: 1.5em;
+		margin: 1em 0;
+		font-weight: 600;
+	}
+	.hero-shot {
+		margin: 1.5em 0 0 0;
+		border: var(--border);
+		border-radius: var(--radius);
+		overflow: hidden;
+	}
+	.hero-shot img {
+		display: block;
+		width: 100%;
+		border-radius: 0;
+	}
+	.hero-shot figcaption {
+		padding: 0.6em 1em;
+		font-size: 0.85em;
+		color: rgb(var(--gray));
+		border-top: var(--border);
+	}
+	.meta-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+		gap: 1em;
+		margin: 1.5em 0 0 0;
+	}
+	.meta-grid dt {
+		font-family: var(--font-mono);
+		font-size: 0.72em;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: rgb(var(--gray));
+	}
+	.meta-grid dd {
+		margin: 0.25em 0 0 0;
+		font-weight: 700;
+		color: rgb(var(--black));
+	}
+</style>

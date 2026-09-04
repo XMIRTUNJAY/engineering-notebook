@@ -1,0 +1,33 @@
+---
+type Props = {
+	headline: string;
+	description: string;
+	datePublished?: string;
+	dateModified?: string;
+	url: string;
+	tags?: string[];
+};
+
+const { headline, description, datePublished, dateModified, url, tags = [] } = Astro.props;
+
+const schema: Record<string, unknown> = {
+	'@context': 'https://schema.org',
+	'@type': 'TechArticle',
+	headline,
+	description,
+	...(datePublished ? { datePublished } : {}),
+	...(dateModified ? { dateModified } : {}),
+	author: {
+		'@type': 'Person',
+		name: 'xmirtunjay',
+		url: 'https://github.com/xmirtunjay',
+	},
+	...(tags.length > 0 ? { keywords: tags.join(', ') } : {}),
+	mainEntityOfPage: {
+		'@type': 'WebPage',
+		'@id': url,
+	},
+};
+---
+
+<script type="application/ld+json" set:html={JSON.stringify(schema)} />

@@ -1,0 +1,71 @@
+---
+import { getCollection } from 'astro:content';
+import RowCard from '../../components/RowCard.astro';
+import Base from '../../layouts/Base.astro';
+import { siteUrl } from '../../lib/site';
+
+export async function getStaticPaths() {
+	const lessons = await getCollection('tutorials', ({ data }) => !data.draft);
+	const seriesSlugs = [...new Set(lessons.map((l) => l.data.series))];
+	const projects = await getCollection('projects', ({ data }) => !data.draft);
+	const projectById = new Map(projects.map((p) => [p.id, p]));
+	return seriesSlugs.map((series) => {
+		const parts = lessons
+			.filter((l) => l.data.series === series)
+			.sort((a, b) => a.data.part - b.data.part);
+		return {
+			params: { series },
+			props: { series, parts, project: projectById.get(parts[0]?.data.project) ?? null },
+		};
+	});
+}
+
+const { series, parts, project } = Astro.props;
+const title = project?.data.title ?? series;
+const description = project?.data.description ?? `Tutorial series: ${series}`;
+---
+
+<Base title={title} description={description}>
+	<div class="prose">
+		<p class="kicker">Tutorial series</p>
+		<h1>{title}</h1>
+		<p class="lede">{description}</p>
+		{project && (
+			<p>
+				Case study: <a href={siteUrl(`/projects/${project.id}/`)}>{project.data.title}</a>
+			</p>
+		)}
+	</div>
+	<div class="listing">
+		<ul class="row-list">
+			{parts.map((lesson) => (
+				<RowCard
+					kicker={`Part ${lesson.data.part}`}
+					title={lesson.data.title}
+					href={siteUrl(`/tutorials/${lesson.data.series}/${lesson.id.split('/').slice(1).join('/')}/`)}
+					description={lesson.data.description}
+					meta={lesson.data.pubDate.toISOString().slice(0, 10)}
+				/>
+			))}
+		</ul>
+	</div>
+</Base>
+
+<style>
+	.kicker {
+		font-family: var(--font-mono);
+		font-size: 0.78rem;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: var(--accent);
+		font-weight: 700;
+		margin: 0 0 0.5em 0;
+	}
+	.lede {
+		font-size: 1.15em;
+		color: rgb(var(--gray-dark));
+	}
+	.listing {
+		margin-top: var(--space-4);
+	}
+</style>

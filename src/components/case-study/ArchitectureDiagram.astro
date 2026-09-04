@@ -1,0 +1,96 @@
+---
+type Props = {
+	title: string;
+	chart: string;
+	caption?: string;
+};
+
+const { title, chart, caption } = Astro.props;
+const id = `mermaid-${Math.random().toString(36).slice(2, 10)}`;
+---
+
+<figure class="arch-diagram">
+	<figcaption>{title}</figcaption>
+	<pre class="mermaid-src" id={id}>{chart}</pre>
+	{caption && <p class="caption">{caption}</p>}
+</figure>
+
+<script>
+	async function renderAll() {
+		const host = document.querySelector('.mermaid-src');
+		if (!host) return;
+		const { default: mermaid } = await import('mermaid');
+		const dark = document.documentElement.dataset.theme === 'dark';
+		mermaid.initialize({
+			startOnLoad: false,
+			theme: 'base',
+			themeVariables: dark
+				? {
+						primaryColor: '#1c2450',
+						primaryTextColor: '#e8ebf3',
+						primaryBorderColor: '#8b9bff',
+						lineColor: '#8b9bff',
+						secondaryColor: '#161b26',
+						tertiaryColor: '#0d1117',
+						fontFamily: "ui-monospace, Menlo, Consolas, monospace",
+					}
+				: {
+						primaryColor: '#eef0ff',
+						primaryTextColor: '#18181b',
+						primaryBorderColor: '#2337ff',
+						lineColor: '#2337ff',
+						secondaryColor: '#ffffff',
+						tertiaryColor: '#fbfbfa',
+						fontFamily: "ui-monospace, Menlo, Consolas, monospace",
+					},
+		});
+		const nodes = document.querySelectorAll<HTMLElement>('.mermaid-src:not([data-rendered="true"])');
+		for (const node of nodes) {
+			try {
+				const { svg } = await mermaid.render(node.id + '-svg', node.textContent ?? '');
+				node.innerHTML = svg;
+				node.dataset.rendered = 'true';
+			} catch (err) {
+				node.dataset.rendered = 'true';
+				node.style.whiteSpace = 'pre-wrap';
+			}
+		}
+	}
+
+	renderAll();
+	document.querySelector('[data-theme-toggle]')?.addEventListener('click', () => {
+		document.querySelectorAll<HTMLElement>('.mermaid-src').forEach((n) => {
+			delete n.dataset.rendered;
+		});
+		setTimeout(renderAll, 50);
+	});
+</script>
+
+<style>
+	.arch-diagram {
+		margin: 1.5em 0;
+		border: var(--border);
+		border-radius: var(--radius);
+		overflow: hidden;
+	}
+	.arch-diagram figcaption {
+		padding: 0.6em 1em;
+		border-bottom: var(--border);
+		font-weight: 700;
+		color: rgb(var(--black));
+	}
+	.mermaid-src {
+		margin: 0;
+		padding: 1.5em 1em;
+		border: none;
+		border-radius: 0;
+		background: var(--card);
+		overflow-x: auto;
+		text-align: center;
+	}
+	.caption {
+		padding: 0 1em 0.75em 1em;
+		font-size: 0.9em;
+		color: rgb(var(--gray));
+	}
+</style>

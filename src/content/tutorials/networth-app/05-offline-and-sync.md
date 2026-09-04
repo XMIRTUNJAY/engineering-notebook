@@ -1,0 +1,55 @@
+---
+title: "Offline and sync: how the app works with no server"
+description: "What offline-first means, the fetch interposer that makes it possible, the browser database mirror, and how cloud sync stays simple and safe."
+series: "networth-app"
+part: 5
+project: "networth-app"
+category: "Finance / FinTech"
+tags: ["offline-first", "indexeddb", "sqlite", "postgres", "beginners"]
+technologies: ["Dexie", "better-sqlite3", "PostgreSQL"]
+difficulty: "beginner"
+status: "Active"
+featured: false
+draft: false
+pubDate: 2026-09-04
+---
+
+import Callout from '../../../components/case-study/Callout.astro';
+
+## What offline-first means
+
+Most apps die without internet: the screen loads, the data doesn't. **Offline-first** flips the priority — the app works fully on the device, and the network is an enhancement, not a requirement. For a finance tool holding sensitive data, that is also a privacy story: your numbers never have to leave your machine.
+
+Three pieces make it real here: a browser database, a request router, and an installable shell (the service worker from Part 4). This part covers the first two.
+
+## The browser database: IndexedDB via Dexie
+
+Every browser ships **IndexedDB**, a real database for storing structured data on the device. Raw IndexedDB is notoriously awkward, so the project uses **Dexie**, a thin friendly wrapper. The mirror database, `wealthpath-local`, holds nine stores shaped exactly like the SQLite tables: assets, snapshots, history, liabilities, goals, settings, transactions, check-ins, scenarios. Same shapes, same rules — a twin that lives in the browser.
+
+## The router: local-bridge.ts
+
+Every data call in the UI goes through `fetch('/api/...')`. In local mode, `local-bridge.ts` intercepts those calls and answers them from Dexie instead of the network — implementing the same nine endpoint families with the same semantics (same upserts, same archive-on-delete, same history recalculation). The UI cannot tell the difference, which is precisely the point: one codebase, two backends, zero component changes. Requests for things that only exist on a server (login, sync) get a clear "not available in local mode" instead of failing mysteriously.
+
+<Callout type="lesson" title=" habit worth copying">
+  When you need two backends, don't duplicate the frontend. Interpose at the narrowest point — here, the `fetch` call — and emulate the interface behind it. The seam is 515 lines; duplicating fifteen pages would have been thousands.
+</Callout>
+
+## Forecasts without a server
+
+The full Monte Carlo engine can't run the same way in local mode, so the bridge ships a simpler forecast: 24 months of compounding at each asset's expected return, with optimistic and conservative bands at 1.25× and 0.75× the monthly rate. It is clearly an approximation — and it is labeled as one by its construction. A simplified fallback you admit is better than a sophisticated one you can't run.
+
+## Sync: simple on purpose
+
+When you do want a cloud copy, Postgres holds mirror tables keyed by user plus each row's original id, so rows survive the trip without renumbering. The protocol has two moves: **push** (send local rows up) and **pull** (fetch merged rows down). Conflicts resolve by timestamp — **last-write-wins**: if two devices edit the same row, the newer change stands, no merge screen, no conflict UI.
+
+Why is that acceptable? One user, rarely editing from two devices at once. The timestamp rule is simple, predictable, and impossible to misunderstand — whereas a merge UI would be a whole project of its own. Match the mechanism to the reality: solo usage gets solo-user sync.
+
+Login uses **scrypt** password hashing (salted, timing-safe comparison) with 30-day session cookies — standard practice, no external identity provider. And if the database server is down, login fails closed while everything local keeps working: the design degrades to offline mode instead of breaking.
+
+## Why these tools
+
+- **Dexie** because raw IndexedDB is painful and the mirror must stay ergonomic to maintain.
+- **Postgres** because sync data deserves a real database with real durability guarantees — SQLite's single file is perfect on one machine, wrong across the network.
+- **Docker Compose** because the Postgres setup is one file (`postgres:16-alpine`, one volume, one health check) — a teammate runs one command and has the sync backend.
+
+In Part 6 we zoom out: the full picture, the vocabulary, and the principles worth stealing.

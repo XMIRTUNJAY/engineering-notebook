@@ -1,0 +1,103 @@
+﻿---
+import Base from '../../layouts/Base.astro';
+import ProjectCardImage from '../../components/ProjectCardImage.astro';
+import { getCollection } from 'astro:content';
+
+const projects = (await getCollection('projects', ({ data }) => !data.draft)).sort(
+	(a, b) => (b.data.portfolioScore ?? 0) - (a.data.portfolioScore ?? 0),
+);
+const lessonCounts = new Map<string, number>();
+for (const lesson of await getCollection('tutorials', ({ data }) => !data.draft)) {
+	lessonCounts.set(lesson.data.project, (lessonCounts.get(lesson.data.project) ?? 0) + 1);
+}
+
+const categories = ['All', ...new Set(projects.map((p) => p.data.category))];
+---
+
+<Base title="Projects" description="Engineering case studies of systems I actually built.">
+	<div class="prose">
+		<p class="kicker">Projects</p>
+		<h1>Built systems, written up.</h1>
+		<p class="lede">
+			Each project is a working system with architecture, real code, measured results, and
+			documented failures. Filter by category.
+		</p>
+		<nav class="filters" aria-label="Filter by category">
+			{categories.map((category) => (
+				<a
+					href={category === 'All' ? '#all' : `#${category.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+				>
+					{category}
+				</a>
+			))}
+		</nav>
+	</div>
+	<div class="listing">
+		{categories
+			.filter((c) => c !== 'All')
+			.map((category) => (
+				<section id={category.toLowerCase().replace(/[^a-z0-9]+/g, '-')}>
+					<h2>
+						{category}
+						<span class="count">{projects.filter((p) => p.data.category === category).length}</span>
+					</h2>
+					<ul class="card-grid">
+						{projects
+							.filter((p) => p.data.category === category)
+							.map((project) => (
+								<ProjectCardImage project={project} lessonCount={lessonCounts.get(project.id) ?? 0} />
+							))}
+					</ul>
+				</section>
+			))}
+	</div>
+</Base>
+
+<style>
+	.kicker {
+		font-family: var(--font-mono);
+		font-size: 0.78rem;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: var(--accent);
+		font-weight: 700;
+		margin: 0 0 0.5em 0;
+	}
+	.lede {
+		font-size: 1.15em;
+		color: rgb(var(--gray-dark));
+	}
+	.filters {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5em;
+		margin: 1.5em 0 0 0;
+	}
+	.filters a {
+		font-family: var(--font-mono);
+		font-size: 0.8rem;
+		padding: 0.3em 0.9em;
+		border: var(--border);
+		border-radius: 999px;
+		text-decoration: none;
+		color: rgb(var(--gray-dark));
+	}
+	.filters a:hover {
+		border-color: var(--accent);
+		color: var(--accent);
+	}
+	.listing section {
+		margin-top: var(--space-5);
+	}
+	.listing h2 {
+		font-size: 1.3rem;
+		margin-bottom: 0;
+	}
+	.count {
+		font-family: var(--font-mono);
+		font-size: 0.8rem;
+		color: rgb(var(--gray));
+		margin-left: 0.5em;
+		font-weight: 400;
+	}
+</style>

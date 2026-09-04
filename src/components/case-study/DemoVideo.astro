@@ -1,0 +1,68 @@
+---
+type Props = {
+	title?: string;
+	src?: string;
+	linkUrl?: string;
+	linkLabel?: string;
+	note?: string;
+};
+
+const { title = 'Demo', src, linkUrl, linkLabel = 'Watch the demo', note } = Astro.props;
+---
+
+<section class="demo">
+	<h3>{title}</h3>
+	{src ? (
+		<figure>
+			<video controls preload="metadata" src={src}>
+				Sorry, your browser does not support embedded videos.
+			</video>
+			{note && <figcaption>{note}</figcaption>}
+		</figure>
+	) : (
+		<div class="demo-missing">
+			{linkUrl ? (
+				<p>
+					<a href={linkUrl} target="_blank" rel="noopener">
+						{linkLabel}
+					</a>
+				</p>
+			) : (
+				<p>No recording available yet.</p>
+			)}
+			{note && <p class="note">{note}</p>}
+		</div>
+	)}
+</section>
+
+<style>
+	.demo {
+		margin: 2em 0;
+	}
+	.demo figure {
+		margin: 0;
+		border: var(--border);
+		border-radius: var(--radius);
+		overflow: hidden;
+		background: var(--card);
+	}
+	.demo video {
+		display: block;
+		width: 100%;
+	}
+	.demo figcaption {
+		padding: 0.6em 1em;
+		font-size: 0.85em;
+		color: rgb(var(--gray));
+		border-top: var(--border);
+	}
+	.demo-missing {
+		padding: 1em 1.25em;
+		border-radius: var(--radius);
+		border: 1px dashed rgb(var(--gray));
+		color: rgb(var(--gray));
+	}
+	.demo-missing .note {
+		font-size: 0.9em;
+	}
+</style>

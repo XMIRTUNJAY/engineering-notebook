@@ -1,0 +1,59 @@
+---
+type Shot = { src: string; alt: string; caption?: string };
+
+type Props = {
+	title?: string;
+	shots: Shot[];
+};
+
+const { title = 'Screenshots', shots } = Astro.props;
+---
+
+<section class="gallery">
+	<h3>{title}</h3>
+	<div class="shots">
+		{shots.map((shot) => (
+			<figure>
+				<a
+					href={shot.src}
+					data-lightbox
+					data-lightbox-full={shot.src}
+					data-lightbox-cap={shot.caption ?? shot.alt}
+				>
+					<img src={shot.src} alt={shot.alt} loading="lazy" decoding="async" />
+				</a>
+				{shot.caption && <figcaption>{shot.caption}</figcaption>}
+			</figure>
+		))}
+	</div>
+</section>
+
+<style>
+	.gallery {
+		margin: 2em 0;
+	}
+	.shots {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+		gap: 1em;
+	}
+	.shots figure {
+		margin: 0;
+		border: var(--border);
+		border-radius: var(--radius);
+		overflow: hidden;
+		background: var(--card);
+	}
+	.shots img {
+		display: block;
+		width: 100%;
+		height: auto;
+		border-radius: 0;
+	}
+	.shots figcaption {
+		padding: 0.6em 1em;
+		font-size: 0.85em;
+		color: rgb(var(--gray));
+		border-top: var(--border);
+	}
+</style>

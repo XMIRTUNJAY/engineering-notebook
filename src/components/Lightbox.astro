@@ -1,0 +1,66 @@
+---
+---
+
+<dialog class="lightbox" aria-label="Image viewer">
+	<img alt="" />
+	<p class="lightbox-cap"></p>
+	<form method="dialog">
+		<button class="lightbox-close" aria-label="Close">Close &times;</button>
+	</form>
+</dialog>
+
+<script>
+	(function () {
+		const dialog = document.querySelector('dialog.lightbox') as HTMLDialogElement | null;
+		if (!dialog) return;
+		const img = dialog.querySelector('img') as HTMLImageElement;
+		const cap = dialog.querySelector('.lightbox-cap') as HTMLElement;
+		document.addEventListener('click', (event) => {
+			const trigger = (event.target as HTMLElement).closest('[data-lightbox]') as HTMLElement | null;
+			if (!trigger) return;
+			event.preventDefault();
+			const full = trigger.querySelector('img') as HTMLImageElement | null;
+			img.src = trigger.getAttribute('data-lightbox-full') || full?.src || '';
+			img.alt = full?.alt || '';
+			cap.textContent = trigger.getAttribute('data-lightbox-cap') || '';
+			dialog.showModal();
+		});
+		dialog.addEventListener('click', (event) => {
+			if (event.target === dialog) dialog.close();
+		});
+	})();
+</script>
+
+<style>
+	.lightbox {
+		border: var(--border);
+		border-radius: var(--radius);
+		padding: 0;
+		max-width: min(1100px, 94vw);
+		background: var(--card);
+	}
+	.lightbox::backdrop {
+		background: rgba(0, 0, 0, 0.7);
+	}
+	.lightbox img {
+		display: block;
+		width: 100%;
+		height: auto;
+		border-radius: 0;
+	}
+	.lightbox-cap {
+		margin: 0;
+		padding: 0.75em 1.25em;
+		font-size: 0.9em;
+		color: rgb(var(--gray));
+	}
+	.lightbox-close {
+		margin: 0 1.25em 1em 1.25em;
+		cursor: pointer;
+		border: var(--border);
+		border-radius: 6px;
+		background: transparent;
+		color: inherit;
+		padding: 0.4em 1em;
+	}
+</style>

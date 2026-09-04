@@ -1,0 +1,53 @@
+---
+import RowCard from '../../components/RowCard.astro';
+import Base from '../../layouts/Base.astro';
+import { getCollection } from 'astro:content';
+import { siteUrl } from '../../lib/site';
+
+const experiments = (await getCollection('experiments', ({ data }) => !data.draft)).sort(
+	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
+);
+---
+
+<Base title="Experiments" description="Small, measured engineering experiments with hypotheses, methods, and results.">
+	<div class="prose">
+		<p class="kicker">Experiments</p>
+		<h1>Tested, measured, written down.</h1>
+		<p class="lede">
+			Small research notes with a hypothesis, a method, and numbers. "Not measured" means not
+			measured — nothing here is invented.
+		</p>
+	</div>
+	<div class="listing">
+		<ul class="row-list">
+			{experiments.map((experiment) => (
+				<RowCard
+					kicker={experiment.data.category}
+					title={experiment.data.title}
+					href={siteUrl(`/experiments/${experiment.id}/`)}
+					description={experiment.data.description}
+					meta={`${experiment.data.status} · ${experiment.data.pubDate.toISOString().slice(0, 10)}`}
+				/>
+			))}
+		</ul>
+	</div>
+</Base>
+
+<style>
+	.kicker {
+		font-family: var(--font-mono);
+		font-size: 0.78rem;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: var(--accent);
+		font-weight: 700;
+		margin: 0 0 0.5em 0;
+	}
+	.lede {
+		font-size: 1.15em;
+		color: rgb(var(--gray-dark));
+	}
+	.listing {
+		margin-top: var(--space-4);
+	}
+</style>

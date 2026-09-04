@@ -1,0 +1,38 @@
+---
+type Props = {
+	title?: string;
+	lessons: string[];
+};
+
+const { title = 'Lessons learned', lessons } = Astro.props;
+---
+
+<section class="lessons">
+	<h3>{title}</h3>
+	<ol>
+		{lessons.map((lesson) => (
+			<li>{lesson}</li>
+		))}
+	</ol>
+</section>
+
+<style>
+	.lessons {
+		margin: 2em 0;
+		padding: 1.25em 1.5em;
+		border: var(--border);
+		border-left: 3px solid #15803d;
+		border-radius: 0 var(--radius) var(--radius) 0;
+		background: var(--card);
+	}
+	.lessons h3 {
+		margin-top: 0;
+	}
+	.lessons ol {
+		margin-bottom: 0;
+		padding-left: 1.25em;
+	}
+	.lessons li {
+		margin: 0.5em 0;
+	}
+</style>
