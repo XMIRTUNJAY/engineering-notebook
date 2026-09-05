@@ -20,7 +20,7 @@ import ArchitectureDiagram from '../../../components/case-study/ArchitectureDiag
 
 ## When Priya searches
 
-She types "clustering" and gets concepts ranked by meaning, not keywords. One query does it — real code from `backend/app/knowledge/engine.py`:
+Everything before this part built the system; this part opens its doors — first to Priya's own questions, then to agents asking on their own. She types "clustering" and gets concepts ranked by meaning, not keywords. One query does it — real code from `backend/app/knowledge/engine.py`:
 
 <CodeExample
   title="Cosine similarity over content rows"
@@ -38,7 +38,7 @@ ORDER BY similarity DESC LIMIT :k
 
 First principle: **co-locate what you correlate.** **Your turn:** add one embedding column plus this query shape behind your existing search box before shopping for infrastructure.
 
-**You are here:** Part 5 of 5 — the capstone. Parts 1–4 built the maps, math, API, and pipeline; this part connects everything Priya can ask — and everything agents can ask too.
+**You are here:** Part 5 of 6 — the capstone. Parts 1–4 built the maps, math, API, and pipeline; this part connects everything Priya can ask — and everything agents can ask too. Part 6 then takes it all live.
 
 ## Reading that query like an engineer
 

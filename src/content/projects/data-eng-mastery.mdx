@@ -17,6 +17,7 @@ import TechStack from '../../components/case-study/TechStack.astro';
 import ProjectMetadata from '../../components/case-study/ProjectMetadata.astro';
 import ArchitectureDiagram from '../../components/case-study/ArchitectureDiagram.astro';
 import ScreenshotGallery from '../../components/case-study/ScreenshotGallery.astro';
+import DemoVideo from '../../components/case-study/DemoVideo.astro';
 import Callout from '../../components/case-study/Callout.astro';
 import Decision from '../../components/case-study/Decision.astro';
 import EvidenceBar from '../../components/case-study/EvidenceBar.astro';
@@ -255,6 +256,12 @@ Screenshots from a real registered session (2026-09-05) — including the error 
     { src: siteUrl('/case-studies/data-eng-mastery/practice.png'), alt: 'Adaptive practice serving a real question', caption: 'Practice serves a real adaptive question. Answering it is where the demo found the failures.' },
     { src: siteUrl('/case-studies/data-eng-mastery/exams.png'), alt: 'Generated 10-question mock exam with timer and question map', caption: 'Generated mock exam: timer, question map, seeded repeatability field.' },
   ]}
+/>
+
+<DemoVideo
+  title="Video walkthrough"
+  src={siteUrl('/demos/data-eng-mastery.mp4')}
+  note="Silent captioned tour recorded 2026-09-05 from the same live session: landing, dashboard, practice, exam runner, analytics, flashcards. Eighteen seconds, no narration — the captions carry it."
 />
 
 ## Go deeper

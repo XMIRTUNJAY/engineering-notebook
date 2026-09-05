@@ -20,7 +20,7 @@ import ArchitectureDiagram from '../../../components/case-study/ArchitectureDiag
 
 ## Her clicks, mapped to APIs
 
-Every screen Priya touches calls one of sixteen router groups. In plain words:
+Part 2's math is useless until Priya can touch it — and letting screens touch the database directly is how progress gets forged (the hub's BUG-017 story). This part is the locked door between her clicks and the data. Every screen she touches calls one of sixteen router groups. In plain words:
 
 | She does this | The API does this |
 | ------------- | ----------------- |
@@ -39,7 +39,7 @@ Every screen Priya touches calls one of sixteen router groups. In plain words:
 | Admins (staff) | `admin`: pipeline jobs, publishing, users, audit logs |
 | Health (ops) | `health`: liveness plus an admin-only metrics endpoint |
 
-**You are here:** Part 3 of 5 — the serving layer. Part 2 built the math; this part puts it behind URLs with locked doors. Part 4 fills the tables these endpoints read.
+**You are here:** Part 3 of 6 — the serving layer. Part 2 built the math; this part puts it behind URLs with locked doors. Part 4 fills the tables these endpoints read, and Part 6 proves the whole chain running.
 
 ## The rule behind the table
 
