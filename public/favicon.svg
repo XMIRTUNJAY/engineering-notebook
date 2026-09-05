@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
   <rect width="128" height="128" rx="26" fill="#18181b"/>
   <rect x="20" y="26" width="44" height="8" fill="#2337ff"/>
-  <text x="64" y="92" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="44" font-weight="700" fill="#fbfbfa">E\N</text>
+  <text x="64" y="94" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="52" font-weight="700" fill="#fbfbfa">M</text>
 </svg>
