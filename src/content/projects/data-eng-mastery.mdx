@@ -16,6 +16,7 @@ import ProjectHero from '../../components/case-study/ProjectHero.astro';
 import TechStack from '../../components/case-study/TechStack.astro';
 import ProjectMetadata from '../../components/case-study/ProjectMetadata.astro';
 import ArchitectureDiagram from '../../components/case-study/ArchitectureDiagram.astro';
+import ScreenshotGallery from '../../components/case-study/ScreenshotGallery.astro';
 import Callout from '../../components/case-study/Callout.astro';
 import Decision from '../../components/case-study/Decision.astro';
 import EvidenceBar from '../../components/case-study/EvidenceBar.astro';
@@ -60,6 +61,8 @@ Three things went wrong enough to leave marks. All three are still visible in th
 **The browser gave out rewards.** The app once trusted Priya's browser to award XP, and browsers can lie — to themselves (bugs) and for their owners (cheats). The `BUG-017` comment in `exams.py` records the day that ended: XP is awarded server-side on pass now. Forged progress also creates support tickets nobody can adjudicate, so this was never just about cheating.
 
 **Demo data leaked into real shapes.** Test fixture rows were found sitting in production-shaped data. No user saw them, but the scare rewrote the discipline: seed and teardown are part of the test now, not decoration.
+
+**Demo day broke the write path.** Registering live and answering one practice question surfaced two failures reads never would: the browser's answer and game-state calls die on CORS (`CORS_ORIGINS` defaults to empty), and the answer endpoint itself 500s with `MultipleResultsFound` — duplicate game-state rows behind a `get_or_create` with no unique constraint. Reads are end-to-end real; writes are backlog. Full field report: Part 6.
 
 And one honest admission: the progress tracker faithfully records phases stalled for months. Process reveals stalling; it cannot cure it. That is not a failure of the system — it is the system telling the truth, which is all it promised.
 
@@ -182,9 +185,9 @@ Who remembers what: Postgres holds everything that matters (lose Redis and the s
 | | |
 |---|---|
 | **Verified** (measured or read from source) | 86/86 unit tests (2026-09-05); 52% unit coverage, engine 93–100%; 16 router groups; 14 migrations, single head; 7 pipeline stages; BUG-017 fixed in source; structlog logging, admin Prometheus endpoint, JWT + rate limits + audit log all present in source |
-| **Observed** (noticed, not benchmarked) | Exam generation feels instant at 20 questions; dashboard loads without perceptible wait locally |
+| **Observed** (noticed, not benchmarked) | Exam generation feels instant at 20 questions; dashboard loads without perceptible wait locally; live demo 2026-09-05: reads green, answer writes fail (CORS + duplicate-row 500) |
 | **Intended** (designed, not yet proven) | 80% coverage floor holding as code grows; hybrid keyword-plus-vector ranking |
-| **Unknown** (not measured) | Behavior past single-node scale; real-learner retention lift; 60-question exam latency |
+| **Unknown** (not measured) | Behavior past single-node scale; real-learner retention lift; 60-question exam latency; write path after the CORS/duplicate fixes |
 
 <EvidenceBar items={[
   { label: 'Unit tests', value: '86 / 86 passing' },
@@ -218,7 +221,7 @@ Verification is mechanical, not hopeful: `make test-unit` must stay green, the l
 
 **What worked.** The maps survived a year — specs still describe the code. The engine split turned untestable math into 86 green tests. One store keeps the whole thing operable by one person.
 
-**What didn't.** Fixture rows in production-shaped data (fixed with seed/teardown discipline). Client-awarded XP (fixed server-side). The tracker recording stalled phases nobody resumes (unfixed — process reveals, humans resume).
+**What didn't.** Fixture rows in production-shaped data (fixed with seed/teardown discipline). Client-awarded XP (fixed server-side). Answer writes failing live — CORS config plus duplicate game-state rows (open backlog, diagnosed). The tracker recording stalled phases nobody resumes (unfixed — process reveals, humans resume).
 
 **What surprised me.** How much of "study app" turned out to be scheduling and sampling rather than content. The content matters least and breaks most — hence the pipeline getting the heaviest machinery.
 
@@ -241,6 +244,19 @@ Five things worth keeping: same inputs, same outputs — that is why the brain i
   ]}
 />
 
+## In action, on the live build
+
+Screenshots from a real registered session (2026-09-05) — including the error badge the demo refused to crop out:
+
+<ScreenshotGallery
+  title="Live session"
+  shots={[
+    { src: siteUrl('/case-studies/data-eng-mastery/dashboard.png'), alt: 'Dashboard minutes after registration: Bronze rank, empty mastery stats, ten sections', caption: 'Dashboard: Bronze, 0/24 concepts, honest empty states — and a red error badge from game-sync failing.' },
+    { src: siteUrl('/case-studies/data-eng-mastery/practice.png'), alt: 'Adaptive practice serving a real question', caption: 'Practice serves a real adaptive question. Answering it is where the demo found the failures.' },
+    { src: siteUrl('/case-studies/data-eng-mastery/exams.png'), alt: 'Generated 10-question mock exam with timer and question map', caption: 'Generated mock exam: timer, question map, seeded repeatability field.' },
+  ]}
+/>
+
 ## Go deeper
 
-Five parts following one learner from signup to mock exam: the method, the math, the API, the pipeline, knowledge systems and capstone. Start with <a href={siteUrl('/tutorials/data-eng-mastery/01-repo-and-method/')}>Part 1: repo structure and the spec-driven method</a>.
+Six parts following one learner from signup to a live demo: the method, the math, the API, the pipeline, knowledge systems and capstone — then <a href={siteUrl('/tutorials/data-eng-mastery/06-guided-demo/')}>Part 6</a>, the field report from inside the running app. Start with <a href={siteUrl('/tutorials/data-eng-mastery/01-repo-and-method/')}>Part 1: repo structure and the spec-driven method</a>.

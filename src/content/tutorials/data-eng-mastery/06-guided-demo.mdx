@@ -1,0 +1,76 @@
+---
+title: "Guided demo: one real hour inside the app"
+description: "Register, tour, practice, and break things on the live build: what works first-hand, what fails, and what each failure teaches."
+series: "data-eng-mastery"
+part: 6
+project: "data-eng-mastery"
+category: "Education / Learning"
+tags: ["demo", "testing", "debugging", "beginners"]
+technologies: ["Next.js", "FastAPI", "PostgreSQL"]
+difficulty: "beginner"
+status: "Active"
+featured: false
+draft: false
+pubDate: 2026-09-05
+---
+
+import Callout from '../../../components/case-study/Callout.astro';
+import ScreenshotGallery from '../../../components/case-study/ScreenshotGallery.astro';
+import { siteUrl } from '../../../lib/site';
+
+## Setting foot inside
+
+Parts 1–5 explained this system from the code outward. This part does the reverse: I registered as Priya Demo on the running build, clicked through it, answered questions, and wrote down everything — including the two failures. A demo that hides its failures is a sales pitch. This one is a field report.
+
+**You are here:** Part 6 of 6 — the observed finale. Nothing below is inferred from source; every screen was visited, every request below was actually sent.
+
+## Registration: thirty seconds, one surprise
+
+The register form asks for name, email, password twice, and an optional certification picker. Submit created the account and landed straight on the dashboard — no email round-trip, no friction. The surprise was instant: a "First Steps" badge toast for studying one day in a row, plus Bronze Level 1 with 5 XP before answering anything.
+
+That starting XP is a small design decision worth noticing: day-zero generosity. It costs nothing, and an empty profile showing all zeros is where motivation goes to die. Onboarding that grants the first badge immediately is onboarding that understands beginners.
+
+## The dashboard, honestly
+
+<ScreenshotGallery
+  title="In action on the live build"
+  shots={[
+    { src: siteUrl('/case-studies/data-eng-mastery/dashboard.png'), alt: 'Dashboard: Bronze rank, mastery stats, section progress, due reviews', caption: 'Dashboard minutes after registration: Bronze, 0/24 concepts, ten Databricks sections at 0%.' },
+    { src: siteUrl('/case-studies/data-eng-mastery/practice.png'), alt: 'Adaptive practice serving a real question with session stats', caption: 'Practice serves a real adaptive question; the session panel waits for the first answer.' },
+    { src: siteUrl('/case-studies/data-eng-mastery/exams.png'), alt: 'Generated 10-question mock exam with timer and question map', caption: 'Generated mock exam: 10 questions, countdown timer, question map, abandon option.' },
+  ]}
+/>
+
+The dashboard shows exactly what Part 2 promised: rank, streak, mastered concepts (0/24), overall mastery (0%), due reviews ("Nothing due. You are caught up."), weaknesses ("No persistent weaknesses detected yet"), and recommendations withheld until practice answers exist. Ten Databricks sections list real syllabi names with 0% bars. Nothing is faked to look busy — an empty state that says "answer questions and I'll wake up" is more trustworthy than demo confetti.
+
+Look bottom-left of the first screenshot: a red "1 error" badge. I am keeping it in the gallery deliberately. It is the game-state sync failing (more below). A case study that crops out its error badges is editing reality.
+
+## Practice serves; answering breaks
+
+The Practice page served a genuine adaptive question — a 100-row dimension joining a 10 TB fact with sort-merge, answer: broadcast join. The loop from Parts 2–3 visibly works at the read end. Clicking the answer, though, printed "Failed to fetch" and the session stayed 0/0.
+
+Two independent failures stack here, and separating them is the whole lesson:
+
+**Failure 1 — CORS.** The browser calls `http://localhost:8000` directly, but the backend's `CORS_ORIGINS` defaults to an empty list (`backend/app/core/config.py`), so the browser blocks game-state, badge, profile, and answer requests. Reads served same-origin work; cross-origin writes die. The fix is one environment variable (`CORS_ORIGINS=http://localhost:3000`) plus a backend restart — configuration, not architecture.
+
+**Failure 2 — duplicate game rows.** Calling the answer endpoint directly (same machine, no browser involved) returns HTTP 500: `sqlalchemy.exc.MultipleResultsFound` in `get_or_create_game_state` (`game_state_service.py:56`). More than one game-state row exists for the user, and `scalar_one_or_none()` refuses to guess. The function name promises "get or create"; the table lacks the unique constraint that would keep the promise. The fix is a uniqueness migration plus cleanup of the duplicate rows — the exact class of bug Part 3's state-ownership rule exists to prevent.
+
+<Callout type="warning" title="What the demo proved">
+  Reads are end-to-end real (register → dashboard → adaptive question → generated exam). Writes are broken in this environment two independent ways: browser CORS config and a duplicate-row crash. Both fixes are small; neither was mine to apply unasked on a running stack — so they are recorded here as maintainer backlog instead.
+</Callout>
+
+## The exam runner earns its keep
+
+Generating a mock exam worked first try: 10 questions, a 119-minute countdown, a question map for jumping around, previous/next navigation, and an abandon option. The seed field sits beside question count — the seeded shuffle from Part 2, visible in the UI as "repeatability." An exam you can regenerate identically is an exam you can argue with, and arguable exams are the fair kind.
+
+## What this hour teaches
+
+1. **Read paths rot slower than write paths.** Everything display-only worked; both failures lived on writes. Test writes first, demo writes first, monitor writes first.
+2. **Dev/prod parity is a feature.** The CORS gap exists only because the browser and API run on different origins locally — the exact split production would have. Fixes belong in config, and config belongs in version control, not memory.
+3. **Uniqueness belongs in the database, not in function names.** `get_or_create` without a unique constraint is a wish. The database is the only layer that cannot be skipped — enforce there.
+4. **Error badges are content.** The red counter, the "Failed to fetch", the honest empty states — a demo that keeps them teaches debugging alongside features.
+5. **A demo is a test with screenshots.** Register → dashboard → practice → exam, scripted exactly as above, would have caught both failures before any human did. That script is now written down here. That is the point of this part.
+
+## Reproduce this demo
+
+Backend on `:8000`, frontend on `:3000`, both from the repo's Compose/Make setup. Register a fresh user, open the dashboard, answer one practice question, generate one exam. Expected: dashboard and reads green; answer submit fails until `CORS_ORIGINS` includes the frontend origin and duplicate game-state rows are cleaned. If your run differs — in either direction — that difference is itself a finding worth writing down.
