@@ -18,7 +18,7 @@ import Callout from '../../../components/case-study/Callout.astro';
 import CodeExample from '../../../components/case-study/CodeExample.astro';
 import ArchitectureDiagram from '../../../components/case-study/ArchitectureDiagram.astro';
 
-## Topic 1 — Why Priya never sees raw content
+## Why Priya never sees raw content
 
 Her Liquid Clustering lesson didn't fall from the sky — it traveled: syllabus PDF → extracted sections → generated draft → seven validators → versioned publish → search indexes → embeddings. A single script doing all of that is untestable and undebuggable at 3 AM. First principle: **a pipeline is an assembly line where every station can reject the part.** Follow one concept through all seven stations:
 
@@ -34,7 +34,7 @@ Her Liquid Clustering lesson didn't fall from the sky — it traveled: syllabus 
 
 **You are here:** Part 4 of 5 — the factory. Parts 1–3 mapped the repo, the math, and the API; this part fills the tables they read. Part 5 wires up search and agents.
 
-## Topic 2 — The contract of one stage
+## The contract of one stage
 
 Every stage keeps the same promise, in the same order:
 
@@ -58,7 +58,7 @@ Same shape seven times means one mental model covers the whole pipeline — and 
   caption="The loop every stage runs. Idempotency lives in the receipt check, quality in the validate step."
 />
 
-## Topic 3 — The 3 AM guarantee: idempotency
+## The 3 AM guarantee: idempotency
 
 Real code from `backend/app/pipeline/orchestrator.py`:
 
@@ -80,7 +80,7 @@ def _generate_stage_idempotency_key(self, certification_id, stage):
 
 Idempotency is a property of the *record of* the work, not the work. **Your turn:** add receipt-check-skip to any retryable job you own. Failed jobs land in a dead-letter queue as inspectable rows — retries become deliberate actions, and the orchestrator always knows where a run stands.
 
-## Topic 4 — A crash, walked through
+## A crash, walked through
 
 Tuesday 3 AM: the run dies during Validate (stage 4 of 7). Here is the morning:
 
@@ -91,13 +91,13 @@ Tuesday 3 AM: the run dies during Validate (stage 4 of 7). Here is the morning:
 
 Without receipts, the only safe move is re-running everything — re-fetched sources, regenerated drafts, duplicated versions. The receipt turns "oh no, rerun" into "resume". Note the 24-hour window: a crash discovered Friday from a Tuesday run replays from scratch. That boundary is documented, not discovered.
 
-## Topic 5 — Validators, cheap first
+## Validators, cheap first
 
 Schema shape (22 fields, slug patterns, `correct_answer ^[A-D]$`) → syllabus boundary → terminology → accuracy → duplicates (0.85) → quality thresholds → code execution (`ast.parse`). Fail fast on structure before spending on substance — compilers taught us; pipelines keep forgetting. When this ordering is wrong: expensive checks burn budget rejecting what a regex caught free.
 
 The general rule travels: order every gate sequence by cost-per-rejection, cheapest first. Model-judged accuracy goes last not because it matters least but because it costs most. And gates grow from observed failures — these seven exist because real bad content met each one, in that order of discovery.
 
-## Topic 6 — What reaches her: a tradeoff with reversals
+## What reaches her: a tradeoff with reversals
 
 Real entry from `knowledge-base/trade_off_matrices.yaml`:
 
@@ -112,7 +112,7 @@ LLM generation is template-scaffolded (15 templates per difficulty band); nothin
 
 Publishing itself is careful: hash-compared upserts (unchanged content isn't rewritten), version bumps (history preserved), snapshots (rollback possible). Publishing is a promise to learners; these mechanics keep it.
 
-## Topic 7 — Directing an AI agent at this pipeline
+## Directing an AI agent at this pipeline
 
 ```text
 You are adding stage 8 to this content pipeline.
@@ -130,7 +130,7 @@ Before coding:
 3. Then implement with tests.
 ```
 
-## Topic 8 — Failure modes of pipelines
+## Failure modes of pipelines
 
 - **No receipts.** Every retry duplicates. Defense: receipt-check-skip per stage (verified in `orchestrator.py`).
 - **Gates in wrong order.** Expensive judges reject what regexes catch free. Defense: cost-ordered validators; re-order when you add one.
@@ -138,7 +138,7 @@ Before coding:
 - **Unversioned publishes.** A bad publish overwrites good content with no way back. Defense: hash-compare, version bump, snapshot — rollback is a feature.
 - **Expired windows.** Crash found after receipts expired replays everything. Defense: documented 24h window + alerts long before it matters (recommended, not yet built — an honest gap).
 
-## Topic 9 — Exercises
+## Exercises
 
 1. Kill a run mid-stage locally. Resume it. Which stages re-ran? (Expect: none finished twice.)
 2. Reorder two validators (cheap last). Estimate the wasted compute on a 100-lesson batch. Put the order back.
@@ -146,7 +146,7 @@ Before coding:
 4. Inspect one dead-letter row end to end: what failed, which gate caught it, what a human does next.
 5. Ask an AI agent to add a validator with the Topic 7 prompt. Check: receipt scheme reused? Position justified by cost?
 
-## Topic 10 — Five things to take with you
+## Five things to take with you
 
 1. Every station can reject the part — that is what makes it a pipeline, not a script.
 2. Idempotency lives in the record of work, not the work.

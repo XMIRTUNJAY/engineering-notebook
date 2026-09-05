@@ -1,6 +1,6 @@
-﻿---
+---
 title: "Wealthpath (networth-app)"
-description: "Personal net-worth tracker and financial planner: Next.js 14, triple storage backend, pure-TS calculation engine with Monte Carlo forecasting."
+description: "A personal net-worth tracker that refuses to pretend about the future: snapshots as truth, bands instead of point forecasts, honest math."
 repo: ""
 stack: ["Next.js 14", "React 18", "TypeScript", "Tailwind CSS v4", "better-sqlite3", "Dexie/IndexedDB", "PostgreSQL", "React Query", "Recharts", "Vitest", "Playwright"]
 category: "Finance / FinTech"
@@ -28,104 +28,42 @@ import { siteUrl } from '../../lib/site';
 
 <ProjectHero
   title="Wealthpath"
-  subtitle="A personal net-worth tracker and financial-independence planner that works fully offline, derives everything from monthly snapshots, and forecasts with Monte Carlo bands instead of single-number fantasies."
+  subtitle="A personal net-worth tracker and financial-independence planner that works fully offline, derives everything from monthly snapshots, and forecasts with bands instead of single-number fantasies."
   status="Active"
   category="Finance / FinTech"
-  score={90}
   image={siteUrl('/case-studies/networth-app/dashboard.png')}
   imageAlt="Wealthpath dashboard: net-worth hero, stat cards, and wealth-over-time chart"
   imageCaption="Dashboard after five months of snapshots: derived net-worth hero, liquid/investable/runway cards, journey chart. Click to enlarge."
   meta={[
-    { label: 'Code files', value: '123 TypeScript' },
     { label: 'Unit tests', value: '40 / 40 passing' },
-    { label: 'UI pages', value: '15 routes' },
+    { label: 'Forecast cost', value: '~31 ms per run' },
     { label: 'API routes', value: '21 files' },
+    { label: 'Works offline', value: 'Yes, fully' },
   ]}
 />
 
-<TechStack items={['Next.js 14', 'React 18', 'TypeScript', 'Tailwind CSS v4', 'better-sqlite3', 'Dexie / IndexedDB', 'PostgreSQL', 'React Query', 'Recharts', 'Vitest', 'Playwright']} />
+> "We suffer more often in imagination than in reality." — Seneca, Letter 13 to Lucilius
 
-<EvidenceBar items={[
-  { label: 'Unit tests', value: '40 / 40 passing' },
-  { label: 'Screenshots', value: '3 verified live' },
-  { label: 'Demo video', value: '3:38 narrated tour' },
-  { label: 'Measured', value: '2026-09-04' },
-]} />
+Banking apps show balances; spreadsheets show formulas nobody audits; most planners show a single retirement number with false precision. All three ask you to imagine certainty where none exists. This project started from the opposite stance: make uncertainty visible — bands, not points — and derive every number from inputs a human can check.
 
-## What
+## Two ways to read this page
 
-Wealthpath answers one question honestly: *where do I stand, and when can I stop?* Assets, liabilities, goals, and transactions CRUD. A 4-step monthly check-in wizard. Forecasting with optimistic/expected/conservative bands plus seeded Monte Carlo p10/p50/p90. What-if scenarios, a standalone calculator suite, CSV/Excel import, full JSON export, and opt-in Postgres cloud sync. Solo-user, desktop/self-host oriented.
+- **Understand the system:** The spark ? The struggle ? The decisions ? How it works ? Where it stands ? Reflection.
+- **Build your own:** Constraints ? Architecture ? The snapshot rule ? Try the demo ? The tutorial series ? Exercises at the end.
 
-<ProjectMetadata rows={[
-  { label: 'Language', value: 'TypeScript (strict)' },
-  { label: 'Framework', value: 'Next.js 14 App Router' },
-  { label: 'Storage', value: 'SQLite + IndexedDB + Postgres' },
-  { label: 'State', value: 'React Query + NetWorthContext' },
-  { label: 'Deploy', value: 'next start (standalone) + Compose' },
-  { label: 'Tests', value: 'Vitest + CRUD smoke + Playwright e2e' },
-]} />
+## The spark
 
-## Why this shape
+I wanted to answer a question my existing tools couldn't answer honestly: *where do I stand, and when can I stop?* A bank balance answers the first half for today and nothing else. A spreadsheet answers both halves until one formula rots silently — and spreadsheet rot is silent by design, which is what makes it dangerous for money. So the project began as a requirement, not a stack: monthly truth I record myself, math anyone can re-derive, and forecasts that show ranges instead of pretending to predict markets.
 
-Four constraints drove every decision: financial data must work with zero cloud dependency; a solo user means sync can be last-write-wins; money math must be unit-tested; deployment must be a SQLite file plus `next start`. The result: three storage backends behind one fetch interposer (`local-bridge.ts`), a framework-free calculation engine (`src/lib/engine/`), and 21 API route files with zod validation. Details live in the tutorial series below.
+## The struggle
 
-<Callout type="decision" title="Why three databases">
-  A single hosted database would violate the privacy constraint; localStorage-only would cap query power and durability. So: server SQLite with migrations, a browser IndexedDB mirror, and Postgres purely for opt-in sync.
-</Callout>
+**The health score I couldn't explain.** The first version computed financial health from allocation heuristics — weights totaling 95, a goal component driven by milestone progress rather than goals. It looked mathematically reasonable and meant nothing I could defend. If you can't explain what a score means, the score is decoration. It was rebuilt as seven transparent sub-scores (liquidity, savings, debt, emergency, goals, diversification, history) weighting to exactly 100, with tests pinning the near-full and zero states.
 
-## Constraints
+**Math with no harness.** The audit found no test framework installed at all — money code running on hope. The fix was the `engine/` split: framework-free pure modules plus 9 vitest files, 40/40 passing. The lesson generalized across every project on this site: untested code isn't just risky, it's unteachable.
 
-Extracted from the implementation, not aspired to:
+**Two brains, one truth.** Snapshots get recomputed on the server and re-derived in the client context. Two paths to the same number is a standing invitation to drift, and the audit flagged it as the top risk. It hasn't bitten. The parity between the two paths is the thing I would test next, before anything new.
 
-- Must work with zero cloud dependency (local mode via Dexie mirror).
-- Data must remain private (SQLite file + optional self-hosted sync).
-- Calculations must be deterministic and testable (seeded engine, 40 unit tests).
-- Must support Excel/CSV import (dependency-free RFC-4180 parser + SheetJS wrapper).
-- Deployment must be one file plus one command (`next start` standalone + SQLite).
-
-## Demo
-
-Screenshots and video captured from a live local run against fictional demo data (verified 2026-09-04). No real financial figures appear anywhere on this page.
-
-<ScreenshotGallery
-  title="In action"
-  shots={[
-    { src: siteUrl('/case-studies/networth-app/dashboard.png'), alt: 'Wealthpath dashboard showing net worth hero, stat cards, and wealth-over-time chart', caption: 'Dashboard: net-worth hero, liquid/investable/runway cards, journey chart.' },
-    { src: siteUrl('/case-studies/networth-app/checkin.png'), alt: 'Monthly check-in wizard step 1 with per-asset value inputs', caption: 'Check-in wizard: per-asset values feed the monthly snapshots.' },
-    { src: siteUrl('/case-studies/networth-app/scenarios.png'), alt: 'What-if scenarios comparing baseline and modified FI projections', caption: 'Scenarios: baseline vs modified FI projection, simulated without touching real data.' },
-  ]}
-/>
-
-<DemoVideo
-  title="Video walkthrough"
-  src={siteUrl('/demos/networth-app.mp4')}
-  note="Narrated tour recorded 2026-09-04 from a live local run with fictional demo data: all 14 tabs — dashboard, portfolio, assets, liabilities, goals, forecast, FI, scenarios, cash flow, check-in, tools, import, settings, privacy — with voiceover explaining each feature."
-/>
-
-## Architecture at a glance
-
-<ArchitectureDiagram
-  title="System architecture"
-  chart={`flowchart LR
-    subgraph Client["Browser (Next.js App Router)"]
-        UI["15 pages + components"]
-        CTX["NetWorthContext + React Query"]
-        BR["local-bridge.ts"]
-        DEX["Dexie / IndexedDB"]
-    end
-    subgraph Server["Next.js server"]
-        R["21 API route files"]
-        DB[("networth.db")]
-    end
-    PG[("PostgreSQL (sync only)")]
-    UI --> CTX --> BR
-    BR -->|server mode| R --> DB
-    BR -->|local mode| DEX
-    R -->|push/pull LWW| PG`}
-  caption="One UI, two backends. The bridge interposes on fetch; the engine computes; snapshots are the source of truth."
-/>
-
-## Engineering decisions
+## The decisions
 
 <Decision
   title="Snapshots as source of truth"
@@ -147,15 +85,84 @@ Screenshots and video captured from a live local run against fictional demo data
   result="~31 ms per run; UI recomputes per keystroke; tests assert exact outputs."
 />
 
-## What didn't work
+<Callout type="decision" title="Why three databases">
+  A single hosted database would violate the privacy constraint; localStorage-only would cap query power and durability. So: server SQLite with migrations, a browser IndexedDB mirror, and Postgres purely for opt-in sync. Three stores sounds like sprawl until you see each one defends a constraint the others can't.
+</Callout>
 
-Two documented before/after stories, both evidenced in the repo — no manufactured failures:
+Four constraints did the rest of the shaping, extracted from the implementation rather than aspired to: zero cloud dependency (Dexie mirror), privacy (SQLite file plus optional self-hosted sync), deterministic tested math (seeded engine), and Excel/CSV import for the messy reality of bank exports. Deployment stays one file plus one command.
 
-**Attempt 1: health score v1.** `src/lib/finance.ts` computed health from allocation heuristics with weights totaling 95 and a goal component driven by milestone progress rather than goals. The audit called it half-fudged. **Final approach:** `src/lib/engine/health.ts` v2 — seven transparent sub-scores (liquidity, savings, debt, emergency, goals, diversification, history) weighting to exactly 100, with 2 unit tests pinning near-full and zero states.
+## How it works
 
-**Attempt 2: untested math layer.** The audit found no test framework installed at all. **Final approach:** the `engine/` split plus 9 vitest files, 40/40 passing (run 2026-09-04), with coverage mapping exactly onto the modules that matter.
+<TechStack items={['Next.js 14', 'TypeScript (strict)', 'better-sqlite3', 'Dexie/IndexedDB', 'PostgreSQL (sync only)', 'React Query', 'Recharts', 'Vitest']} />
 
-## Measured results
+<ArchitectureDiagram
+  title="One UI, two backends"
+  chart={`flowchart LR
+    subgraph Client["Browser (Next.js App Router)"]
+        UI["15 pages + components"]
+        CTX["NetWorthContext + React Query"]
+        BR["local-bridge.ts"]
+        DEX["Dexie / IndexedDB"]
+    end
+    subgraph Server["Next.js server"]
+        R["21 API route files"]
+        DB[("networth.db")]
+    end
+    PG[("PostgreSQL (sync only)")]
+    UI --> CTX --> BR
+    BR -->|server mode| R --> DB
+    BR -->|local mode| DEX
+    R -->|push/pull LWW| PG`}
+  caption="The bridge interposes on fetch; the engine computes; snapshots are the source of truth."
+/>
+
+The file to understand first is `local-bridge.ts`: every data request passes through it, and it routes each call either to the API routes (server mode) or to Dexie (local mode). One UI, two backends, zero rewritten components when switching. The file to understand second is `src/lib/engine/`: framework-free math — health, projections, scenarios — with no imports from the app, which is exactly why it can be tested in milliseconds and reasoned about on paper.
+
+The monthly check-in wizard is where truth enters: per-asset values, once a month, becoming snapshots. Everything downstream — net worth, journey chart, runway, Monte Carlo bands, what-if scenarios — derives from those rows. Delete every derived table and the app rebuilds them; delete the snapshots and there is nothing. That asymmetry is the whole design.
+
+<ProjectMetadata rows={[
+  { label: 'Language', value: 'TypeScript (strict)' },
+  { label: 'Framework', value: 'Next.js 14 App Router' },
+  { label: 'Storage', value: 'SQLite + IndexedDB + Postgres' },
+  { label: 'State', value: 'React Query + NetWorthContext' },
+  { label: 'Deploy', value: 'next start (standalone) + Compose' },
+  { label: 'Tests', value: 'Vitest + CRUD smoke + Playwright e2e' },
+]} />
+
+## In action
+
+Screenshots and video captured from a live local run against fictional demo data (verified 2026-09-04). No real financial figures appear anywhere on this page.
+
+<ScreenshotGallery
+  title="In action"
+  shots={[
+    { src: siteUrl('/case-studies/networth-app/dashboard.png'), alt: 'Wealthpath dashboard showing net worth hero, stat cards, and wealth-over-time chart', caption: 'Dashboard: net-worth hero, liquid/investable/runway cards, journey chart.' },
+    { src: siteUrl('/case-studies/networth-app/checkin.png'), alt: 'Monthly check-in wizard step 1 with per-asset value inputs', caption: 'Check-in wizard: per-asset values feed the monthly snapshots.' },
+    { src: siteUrl('/case-studies/networth-app/scenarios.png'), alt: 'What-if scenarios comparing baseline and modified FI projections', caption: 'Scenarios: baseline vs modified FI projection, simulated without touching real data.' },
+  ]}
+/>
+
+<DemoVideo
+  title="Video walkthrough"
+  src={siteUrl('/demos/networth-app.mp4')}
+  note="Narrated tour recorded 2026-09-04 from a live local run with fictional demo data: all 14 tabs with voiceover explaining each feature."
+/>
+
+## Where it stands
+
+| | |
+|---|---|
+| **Verified** | 40/40 vitest (2026-09-04); seed determinism bit-identical across runs; ~31 ms per 1000-path run; 21 API route files; 3 screenshots + narrated video from live runs |
+| **Observed** | UI recomputes projections per keystroke without perceptible lag; offline mode indistinguishable from server mode in normal use |
+| **Intended** | Server/client recompute parity tests; inflation wired into Monte Carlo paths |
+| **Unknown** | Multi-year dataset performance; sync-conflict behavior beyond last-write-wins |
+
+<EvidenceBar items={[
+  { label: 'Unit tests', value: '40 / 40 passing' },
+  { label: 'Screenshots', value: '3 verified live' },
+  { label: 'Demo video', value: '3:38 narrated tour' },
+  { label: 'Measured', value: '2026-09-04' },
+]} />
 
 <MetricsTable
   title="Verification results"
@@ -170,6 +177,20 @@ Two documented before/after stories, both evidenced in the repo — no manufactu
   caption="Unit and determinism figures were executed for this case study; smoke figures are quoted from project docs as point-in-time."
 />
 
+## How help was used, and where judgment stayed
+
+No agent workflow is recorded in this repo's history — no instruction files, no task reports — so the honest statement is that the judgment trail lives in the audit and the rebuild it triggered: foundation before features, engine split before new screens, tests before trust. The deterministic design is itself AI-era-proofing: seeded, pure, exactly-asserted math is checkable by anyone or anything, while the two-path drift risk above is precisely the kind of thing no agent would flag unprompted. Verification here is mechanical: 40 green tests, bit-identical seeds, screenshots from live runs.
+
+## Reflection
+
+**What worked.** Snapshots-as-truth survived contact with every feature — scenarios, export, forecasts all derive cleanly. Seeded randomness made statistics testable, which still feels like a trick worth stealing.
+
+**What didn't.** Health v1 (a score I could not defend), untested math (fixed by the split), and the standing two-path drift risk (acknowledged, untested — the next test to write).
+
+**What surprised me.** How little of a finance app is finance: most of the work is input plumbing, state sync, and import parsing. The money math is the small, dense center.
+
+**What I'd change.** Wire inflation into the Monte Carlo paths; write the server/client parity test; then stop adding features until a real year of snapshots exists to learn from.
+
 <Timeline
   title="Project timeline"
   items={[
@@ -179,6 +200,6 @@ Two documented before/after stories, both evidenced in the repo — no manufactu
   ]}
 />
 
-## Go deeper
+## Build your own
 
-The six-part tutorial series reconstructs this project layer by layer: problem and architecture, the calculation engine, API and persistence, the client tour, offline and sync, then failures, testing, and verdict. Start with <a href={siteUrl('/tutorials/networth-app/01-problem-and-architecture/')}>Part 1: problem and architecture</a>.
+Reproduce: clone, install, seed the demo data, run the tour. Modify: change one engine weight and watch which screens move — then decide whether the movement is correct. Extend: wire inflation into the Monte Carlo path (the open wiring, documented above). Re-design: replace snapshots with an event ledger and feel, concretely, what auditability costs. The six-part tutorial series reconstructs this project layer by layer — start with <a href={siteUrl('/tutorials/networth-app/01-problem-and-architecture/')}>Part 1: problem and architecture</a>.

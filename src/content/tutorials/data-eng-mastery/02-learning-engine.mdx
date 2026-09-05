@@ -17,19 +17,19 @@ pubDate: 2026-09-05
 import Callout from '../../../components/case-study/Callout.astro';
 import CodeExample from '../../../components/case-study/CodeExample.astro';
 
-## Topic 1 — Priya's Tuesday morning
+## Priya's Tuesday morning
 
 She opens the dashboard: 3 flashcards due, "Liquid Clustering" flagged weak, recommended next: re-read + 5 practice questions, mock exam readiness 61%. No human tutor is awake. Six small functions produced that morning — this part builds each one with you, and you'll compute every number by hand before trusting it.
 
 **You are here:** Part 2 of 5 — the study brain. Part 1 mapped the repo; Parts 3–5 serve this math over HTTP, feed it trustworthy content, and let Priya (and agents) query it.
 
-## Topic 2 — The contract of a pure function
+## The contract of a pure function
 
 Every module in `backend/app/algorithms/` obeys one contract: **same inputs in, same outputs out — no database, no network, no clock surprises.** That is what "pure" means, and it buys three things: tests run in milliseconds, results are reproducible for Priya, and you can reason about each module on paper, which is exactly what follows.
 
 The six residents: `mastery` (how well known), `retention` (when to review), `weakness` (what hurts), `recommendations` (what next), `path_finding` (in what order), `exam_assembly` (fair papers). Nine test files pin them — 86 tests, engine modules at 93–100% coverage.
 
-## Topic 3 — One number for "how well she knows it"
+## One number for "how well she knows it"
 
 A recommendation is a weighted sum over measurable things. Real code from `backend/app/algorithms/mastery.py` (verbatim):
 
@@ -56,14 +56,14 @@ score = (quiz_accuracy * 0.40 + difficulty_coverage * 0.25 +
 
 **Compute Priya's score with her:** 8/10 quiz (0.8), difficulties {3,4,5} (0.6), 6/8 practice (0.75), hands-on done (1.0), correct 7 days ago (e⁻⁰·⁵ ≈ 0.61). Score ≈ 0.32 + 0.15 + 0.1125 + 0.10 + 0.061 = **0.744 → "application"**. Notice the embedded teaching philosophy: hard things (0.25) outweigh many things (0.15). When you write scoring, the weights *are* the product philosophy — choose them deliberately, then test every level boundary (this repo does: 11 mastery tests).
 
-## Topic 4 — Two production gotchas inside that file
+## Two production gotchas inside that file
 
 Two senior details in the real file, both worth stealing:
 
 1. **The timezone guard.** The database returns timezone-aware timestamps; `utcnow()` is naive. Comparing them crashes — a classic production incident — pre-empted here in a comment and a conversion. Lesson: every timestamp crossing a boundary gets normalized, no exceptions.
 2. **The dual scale.** Mastery lives 0–1 here but 0–1000 in storage. Two scales for one concept is a standing invitation to mix them up; the defense is tests on both sides of the conversion. Know both before integrating.
 
-## Topic 5 — When she sees it again (SM-2)
+## When she sees it again (SM-2)
 
 ```python
 if quality < 3:
@@ -82,7 +82,7 @@ Mental model: each card carries *ease* (how well known) and *interval* (when to 
 
 The `1.3` floor matters: without it, repeated failures would drive easiness toward zero and intervals toward nonsense. Every formula needs its guardrails stated — ask of any algorithm you meet: what stops the numbers from going feral?
 
-## Topic 6 — What's weak, what's next, what path
+## What's weak, what's next, what path
 
 One pattern, three applications — score candidates, rank, act:
 
@@ -98,19 +98,19 @@ Path finding runs Kahn's topological sort that **raises on cycles** — a curric
 
 Notice what the weakness formula refuses to do: it never says "study harder." It names the gap (which topic, what kind of errors, how recent) and suggests the fix. Diagnostics beat exhortations — in software and in studying.
 
-## Topic 7 — The content behind the math: a real trap
+## The content behind the math: a real trap
 
 The engine reasons over curated confusions like this verbatim entry from `knowledge-base/exam_traps.yaml`:
 
 > *"500 TB table, 3–4 query dimensions, partitioned by date, slow. What now?"* → Liquid Clustering on the most-filtered dimensions — with explicit reversals (need DROP PARTITION lifecycle → partitioning wins).
 
-<Callout type="lesson" title=" staff lens">
+<Callout type="lesson">
   Model misconceptions as versioned, tested, searchable data — never as prompt text. Then ask of any knowledge system: where do its exam traps live? If nowhere, it doesn't understand its domain yet.
 </Callout>
 
 The reversal is the tell of honest content: the trap admits when the fashionable answer loses. Content without reversals is marketing; content with them is teaching.
 
-## Topic 8 — Directing an AI agent at this engine
+## Directing an AI agent at this engine
 
 Give the agent the contract, not just the feature:
 
@@ -131,7 +131,7 @@ Before coding:
 
 An agent handed this prompt produces reviewable math. An agent handed "make mastery better" produces confident soup.
 
-## Topic 9 — Failure modes of scoring systems
+## Failure modes of scoring systems
 
 - **Weights nobody chose.** Defaults inherited from a tutorial become product philosophy by accident. Defense: every weight has a comment with a reason and a test.
 - **Untested boundaries.** A score of exactly 0.8 landing in the wrong level mislabels Priya's readiness. Defense: boundary tests (this repo has 11 for mastery alone).
@@ -139,7 +139,7 @@ An agent handed this prompt produces reviewable math. An agent handed "make mast
 - **Gaming the metric.** Priya re-takes easy quizzes to inflate mastery. Partial defense: difficulty coverage (0.25) outweighs volume (0.15) — the formula anticipates the exploit. No formula survives all gaming; name what yours doesn't cover.
 - **Stale recency.** A year-old perfect score still contributes a little. Defense: the 14-day half-life decays it toward zero — check that your decay actually reaches ~0 in your horizon.
 
-## Topic 10 — Exercises
+## Exercises
 
 1. Compute mastery for: 5/10 quiz, difficulties {1,2}, 8/8 practice, no hands-on, 30 days ago. Which term dominates the low score?
 2. Trace an SM-2 card through fail → pass → pass with quality 5. Write every number.
@@ -147,7 +147,7 @@ An agent handed this prompt produces reviewable math. An agent handed "make mast
 4. Find the cycle-raising code path in `path_finding.py`. Construct a 3-node cycle and confirm it raises.
 5. Ask an AI agent to add a seventh module (e.g., burnout detection) using the Topic 8 prompt. Review: is it pure? Are boundaries tested?
 
-## Topic 11 — Five things to take with you
+## Five things to take with you
 
 1. Weights are product philosophy — write them deliberately, test the boundaries.
 2. Pure functions are debuggable, and debuggable is teachable.

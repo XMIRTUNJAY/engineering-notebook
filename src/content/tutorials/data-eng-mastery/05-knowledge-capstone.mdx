@@ -18,7 +18,7 @@ import Callout from '../../../components/case-study/Callout.astro';
 import CodeExample from '../../../components/case-study/CodeExample.astro';
 import ArchitectureDiagram from '../../../components/case-study/ArchitectureDiagram.astro';
 
-## Topic 1 — When Priya searches
+## When Priya searches
 
 She types "clustering" and gets concepts ranked by meaning, not keywords. One query does it — real code from `backend/app/knowledge/engine.py`:
 
@@ -40,19 +40,19 @@ First principle: **co-locate what you correlate.** **Your turn:** add one embedd
 
 **You are here:** Part 5 of 5 — the capstone. Parts 1–4 built the maps, math, API, and pipeline; this part connects everything Priya can ask — and everything agents can ask too.
 
-## Topic 2 — Reading that query like an engineer
+## Reading that query like an engineer
 
 Four clauses, four jobs. `SELECT` with `<=>` computes cosine distance beside the row — no second system, no export. `WHERE similarity >= :threshold` (0.7) discards weak matches early instead of ranking noise. `ORDER BY similarity DESC` ranks what remains. `LIMIT :k` (10) caps work and screen space. Because the embedding lives in the same row, certification and keyword filters join in the same round trip — that join is the feature the sidecar architectures pay a sync job to imitate.
 
 Two numbers carry contracts: **1024** (embedding width — change models, migrate data) and **0.7** (match floor — a product decision with an owner, per Part 2's rule that magic numbers get names and dates). **Your turn:** find one magic number in your codebase without an owner. Assign it one today.
 
-## Topic 3 — HNSW: the index that makes it fast
+## HNSW: the index that makes it fast
 
 Without an index, every search compares against every row — fine at hundreds of concepts, hopeless at millions. HNSW (Hierarchical Navigable Small World) pre-builds shortcut layers over the vectors so a query descends greedily instead of scanning. Priya-sized data would survive a scan; the index is bought for headroom, honestly labeled as such.
 
 The honest-scope rule again: match machinery to measured need. Under ~50 static graph nodes, sorted adjacency beats a graph database with an operator (Topic 4). Under thousands of vectors, HNSW beats a scan. In both cases the article states the crossover instead of pretending the heavy tool was always necessary.
 
-## Topic 4 — When Priya asks "what first?"
+## When Priya asks "what first?"
 
 Typed edges (prerequisite, enables, replaces, related) answer three questions: ancestors (what first), reverse lookup (what unlocks), depth-sorted paths minus mastered nodes. Kahn's topological sort *raises* on cycles — a curriculum requiring A-before-B-before-A is broken by construction, and code should prove it. Match machinery to scale: under ~50 static nodes, sorted adjacency beats a graph database with an operator.
 
@@ -71,13 +71,13 @@ Walk one: Priya targets "Liquid Clustering". Ancestors climb prerequisite edges 
   caption="Search, graph, and agent tools are three doors into one backend — the Part-3 services doing the real work."
 />
 
-## Topic 5 — When agents ask instead of Priya
+## When agents ask instead of Priya
 
 Same backend, third client: MCP tools (search, concept, path, progress, quiz, export) plus Obsidian vault exports. Mental model: **client diversity tests service design** — clean Part-3 services meant agents mapped to existing capabilities instead of demanding new endpoints. Design services so the third client is cheap; you won't know what it is yet.
 
 Agent safety, plainly: tools expose reads and quiz attempts — the same operations Priya's screen performs, through the same auth and validation. No tool bypasses a gate Priya faces. The day an agent needs a capability Priya lacks (bulk export, admin reads), that tool gets its own auth review — capability and permission ship together, never apart.
 
-## Topic 6 — Directing an AI agent at this knowledge layer
+## Directing an AI agent at this knowledge layer
 
 ```text
 You are adding a knowledge capability (search, graph, or agent tool).
@@ -97,7 +97,7 @@ Before coding:
 3. Then implement.
 ```
 
-## Topic 7 — Failure modes of knowledge systems
+## Failure modes of knowledge systems
 
 - **Stale embeddings.** Content edited, vectors not recomputed — meaning search lies quietly. Defense: the pipeline's vectorize stage re-runs on publish (Part 4); edits outside the pipeline are the hole — close it by routing all writes through publish.
 - **Threshold rot.** 0.7 was right for last year's content; new topics drift. Defense: the cutoff has an owner and a review habit, not just a value.
@@ -105,7 +105,7 @@ Before coding:
 - **Graph cycles.** A-before-B-before-A curricula. Defense: Kahn's sort raises; the error names the cycle.
 - **Agent overreach.** A tool exposing more than its screen equivalent. Defense: capability parity review for every new tool.
 
-## Topic 8 — Vocabulary (her words → our words)
+## Vocabulary (her words → our words)
 
 - **Concept** — one learnable idea with explanations, examples, traps.
 - **Mastery (0–1, stored 0–1000)** — measured command; 0.55 means "understanding", 0.74 "application".
@@ -118,7 +118,7 @@ Before coding:
 - **MCP tool** — one backend capability, callable by AI agents.
 - **JWT rotation** — short access tokens plus renewable refresh tokens.
 
-## Topic 9 — Exercises
+## Exercises
 
 1. Search "clustering" and "partitioning". Which results overlap? Explain why using the embedding column (same neighborhood) versus keywords (shared words).
 2. Draw the prerequisite ancestors of one concept three levels up. Then delete one edge — what breaks in the path?
@@ -126,7 +126,7 @@ Before coding:
 4. List every MCP tool beside its backing service. Any tool without one is a design smell — report it.
 5. Ask an AI agent to propose a new edge type with the Topic 6 prompt. Judge: does it prove Postgres can't hold it?
 
-## Topic 10 — What worked, what I'd change, what's next
+## What worked, what I'd change, what's next
 
 Worked: spec-first structure surviving a year; pure-function engine testable in milliseconds; one store serving three query kinds; gates deciding while models draft; sources of truth named per concern.
 
@@ -136,7 +136,7 @@ I'd change: write the dimension contract before the first embedding lands (disco
 
 Investigate next: calibrating mastery weights against logged outcomes (judgment → evidence); hybrid keyword-plus-vector ranking with measured lifts; per-section time estimates from attempt timestamps. Each a small experiment — hypotheses first, numbers after. **Your turn:** pick one, write its hypothesis in one sentence, and name the measurement that would confirm it.
 
-## Topic 11 — Principle worth keeping
+## Principle worth keeping
 
 Structured projects feel calm because every hard question was answered once, in writing, where the code can point at it. Tangled projects feel loud because those answers live in someone's head — usually someone who left.
 

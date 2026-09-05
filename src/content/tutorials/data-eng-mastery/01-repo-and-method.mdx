@@ -16,13 +16,13 @@ pubDate: 2026-09-05
 
 import Callout from '../../../components/case-study/Callout.astro';
 
-## Topic 1 — Meet your learner
+## Meet your learner
 
 Priya has six months until her Databricks exam, one hour a day, and a shelf of PDFs she never opens. She signs up, answers onboarding questions (role, experience, exam date, daily minutes), and gets a study plan spread across the weeks to her exam date. Everything in this series exists to serve that journey — and everything in this part exists so a project this big survives long enough to serve her.
 
 **You are here:** Part 1 of 5 — the map room. Parts 2–5 build the study brain, the API, the content pipeline, and the knowledge systems. Each part ends with a handoff telling you exactly where to go next.
 
-## Topic 2 — Why long projects die (and the fix)
+## Why long projects die (and the fix)
 
 Side projects rarely die from hard problems. They die around week six from drift: the code no longer matches the idea in your head, quality erodes silently, restarting feels easier than continuing. First principle: **drift is a documentation failure, not a discipline failure.** This repo fights it with three maps, each answering one question:
 
@@ -35,7 +35,7 @@ docs/progress/PROGRESS.md → WHERE are we right now?
 
 A map nobody reads is decoration. The rule that makes these work: the progress tracker is updated weekly, and a CI job validates the specs — maps that check themselves.
 
-## Topic 3 — How to read an ADR (and write one)
+## How to read an ADR (and write one)
 
 An ADR (Architecture Decision Record) is a one-page memory of a consequential choice. Every ADR in this repo follows one shape — copy it for every consequential decision you ever make:
 
@@ -52,11 +52,11 @@ The last line is the one most teams skip, and the most valuable: it tells your f
 
 **Your turn:** pick one decision in your own project (database, framework, anything) and write it in this shape. If you cannot name the rejected options, you have found a decision made by default — the most dangerous kind.
 
-<Callout type="lesson" title=" staff lens">
+<Callout type="lesson">
   Maps only work if read. This repo's tracker shows phases stalled for months — recorded faithfully, which is exactly its job. Process reveals stalling; it cannot cure it. Read your maps weekly or admit you've stopped.
 </Callout>
 
-## Topic 4 — The repository as Priya's journey needs it
+## The repository as Priya's journey needs it
 
 ```text
 backend/app/
@@ -74,7 +74,7 @@ Mental model for newcomers: **dependencies point inward.** Screens call services
 
 Three directories deserve one extra sentence each. `core/` holds the unglamorous machinery every request touches: configuration, the database connection, password sessions, and the rate limiter that throttles login guessing. `schemas/` holds Pydantic shapes — the bouncers that reject malformed input at the door with a `400` before it can reach calculations. `models/` holds the SQLAlchemy tables — the permanent memory; fourteen Alembic migrations form one linear chain, the schema's replayable memory from empty database to today.
 
-## Topic 5 — The five-command start
+## The five-command start
 
 ```bash
 make dev-up      # postgres + redis + minio (her data's homes)
@@ -88,13 +88,13 @@ Why a Makefile and not docs: **commands that execute can't go stale the way wiki
 
 Checkpoint for this part: after `make seed`, the demo learner exists and the server answers. If any command fails, stop — every later part assumes this ground.
 
-## Topic 6 — The gate that protects Priya
+## The gate that protects Priya
 
 Ten CI jobs — lint, strict types, pytest with an **80% coverage floor**, integration against real services, contract tests, security audit, spec validation, frontend build, Docker smoke. Measured: **86/86 unit tests passing**, engine modules at 93–100% each. What this means for her: the mastery math deciding her study plan is pinned by tests that run in 4 seconds, on every change, before merge.
 
 Read that list again as promises to a learner: nobody can merge untested math that schedules her mornings. Process is care, expressed as automation.
 
-## Topic 7 — Directing an AI agent in this repo
+## Directing an AI agent in this repo
 
 If you hand this repo to a coding agent, do not say "add a feature." Say:
 
@@ -116,7 +116,7 @@ Before coding:
 
 The maps from Topic 2 are what make this prompt work — the agent reads the same ADRs you would. Repos without maps get confident, wrong agents.
 
-## Topic 8 — When the start breaks (troubleshooting)
+## When the start breaks (troubleshooting)
 
 Usual suspects, in order — check these before anything clever:
 
@@ -126,7 +126,7 @@ Usual suspects, in order — check these before anything clever:
 4. **Migration mismatch.** `make migrate` complains about heads. Never edit an applied migration; add a new one (`make migration`).
 5. **Seed twice.** Re-running seed duplicates demo rows. Reset first (`make reset-db`), then seed — teardown is part of the test, not decoration.
 
-## Topic 9 — Exercises
+## Exercises
 
 1. Draw the dependency arrows for one screen (dashboard): screen → service → math/tables. Which arrow would break if you deleted `schemas/`?
 2. Write one ADR for your own project in the Topic 3 shape. Show it to someone; if they can't state what gets harder, rewrite the consequences.
@@ -134,7 +134,7 @@ Usual suspects, in order — check these before anything clever:
 4. Ask an AI agent to explain what `core/` does — then verify each claim against the files. Keep score of its hits and misses.
 5. Read one ADR-00X and one SPEC in this repo. Do they agree with the code today? Evidence beats memory.
 
-## Topic 10 — Five things to take with you
+## Five things to take with you
 
 1. Drift kills projects; documentation defeats drift — but only if read weekly.
 2. Dependencies point inward: screens → services → math/tables, math imports nothing.

@@ -2,23 +2,47 @@
 import Base from '../layouts/Base.astro';
 ---
 
-<Base title="About" description="About this engineering notebook.">
+<Base title="About" description="Who builds this notebook, and why their engineering perspective is worth your time.">
 	<div class="prose">
 		<p class="kicker">About</p>
 		<h1>Build things. Write down why.</h1>
 		<p>
-			This notebook documents systems I actually build and investigate: data platforms, AI agents,
-			developer tools, and the occasional financial planner. Each entry is backed by code, tests,
-			or measurements — inferences are labeled, failures are kept, and "not measured" means
-			exactly that.
+			I'm a production data engineer. For years my work was pipelines, migrations,
+			and the 3 AM pages that teach you what "done" really means. Somewhere along
+			the way I became a systems builder by habit: if I solve something twice, I
+			extract the pattern; if a decision matters, I write down why before the
+			reasons evaporate.
 		</p>
-		<h2>Focus areas</h2>
+		<p>
+			This notebook is where that habit went independent. The projects here are
+			mine — a study platform, a wealth tracker, a mutual-fund intelligence
+			system, the tooling around them — built outside any employer's roadmap,
+			held to a standard I'd defend in any review: tested, measured, and honest
+			about what broke.
+		</p>
+		<p>
+			Lately the work changed shape again. AI writes most first drafts now,
+			including some of the code on this site. So the notebook changed with it:
+			less "here is code," more "here is the reasoning the code came from" —
+			constraints, rejected alternatives, verification, and the failures kept on
+			record. Implementation is cheap. Judgment is the scarce part, and this is
+			where I practice it in public.
+		</p>
+		<h2>What I work on</h2>
 		<ul>
 			<li>Data engineering — Spark, Databricks, pipelines, migrations</li>
 			<li>AI and agents — LLM systems, memory, evaluation, tooling</li>
 			<li>Systems and architecture — storage, sync, offline-first design</li>
 			<li>Developer tools — scanners, notebooks, automation that compounds</li>
 		</ul>
+		<h2>How I work, in one page</h2>
+		<p>
+			Every project here follows the same discipline: reason first, then build,
+			then measure. Decisions get written down with their alternatives. Tests
+			pin the math. Metrics come from runs, not adjectives — and where something
+			isn't measured, the page says so. If you want the method stated plainly,
+			start with any project page and read its struggle section first.
+		</p>
 		<h2>Elsewhere</h2>
 		<ul>
 			<li>
@@ -35,8 +59,8 @@ import Base from '../layouts/Base.astro';
 			content tooling are part of the story, not hidden behind it.
 		</p>
 		<p>
-			Performance budget, measured from the production build: homepage 11 KB HTML, heaviest
-			case-study page 40 KB HTML, all images lazy-loaded, Mermaid and its diagram dependencies
+			Performance budget, measured from the production build: homepage 19 KB HTML, heaviest
+			page 42 KB HTML (a tutorial with diagrams), all images lazy-loaded, Mermaid and its diagram dependencies
 			loaded on demand only on pages that contain diagrams. One demo video (1 MB) is the
 			largest asset on the site; everything else is text.
 		</p>

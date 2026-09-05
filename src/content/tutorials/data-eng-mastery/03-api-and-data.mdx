@@ -18,7 +18,7 @@ import Callout from '../../../components/case-study/Callout.astro';
 import CodeExample from '../../../components/case-study/CodeExample.astro';
 import ArchitectureDiagram from '../../../components/case-study/ArchitectureDiagram.astro';
 
-## Topic 1 — Her clicks, mapped to APIs
+## Her clicks, mapped to APIs
 
 Every screen Priya touches calls one of sixteen router groups. In plain words:
 
@@ -41,13 +41,13 @@ Every screen Priya touches calls one of sixteen router groups. In plain words:
 
 **You are here:** Part 3 of 5 — the serving layer. Part 2 built the math; this part puts it behind URLs with locked doors. Part 4 fills the tables these endpoints read.
 
-## Topic 2 — The rule behind the table
+## The rule behind the table
 
 Router → service → model, no skips. Routers parse HTTP and authenticate; services hold logic with no SQL dialect and no status codes; models describe tables; Pydantic schemas validate in, serialize out, and generate docs for free. First principle: **a layer you can't test alone is a layer that doesn't exist.** For a weekend prototype this layering is pure overhead — layers scale with lifespan, and this project plans in years.
 
 Concretely, in `backend/app/`: `api/v1/` holds the 16 routers, `services/` holds 11 logic modules (`exam_service`, `question_service`, `progress_service`, …), `models/` holds the tables, `schemas/` holds the Pydantic shapes, `core/` holds config, database sessions, security, and rate limits. Learn that sentence and you can find anything in the backend in under a minute.
 
-## Topic 3 — A request's full journey
+## A request's full journey
 
 Follow one login click through every checkpoint:
 
@@ -75,7 +75,7 @@ Remove any stop and name the consequence: no limiter → brute force; no auth �
   caption="Seven stops in, two stops out. Security and shape checks happen before any thinking."
 />
 
-## Topic 4 — One write, fully traced
+## One write, fully traced
 
 Real code from `backend/app/api/v1/exams.py` (submit path):
 
@@ -98,21 +98,21 @@ if passed:
 
 **Your turn:** audit one write path in your project. Who decides — client or server? Move it server-side with a history comment exactly like this one. Failure mode prevented: forged progress and support tickets you cannot adjudicate.
 
-## Topic 5 — Reading the data model without drowning
+## Reading the data model without drowning
 
 UUID-keyed tables in two families. Content: certifications, concepts with JSONB bodies, questions, graph edges, versions, pipeline jobs. People: users, 0–1000 mastery, attempts, SM-2 cards, plans, analytics buckets, game state, Stripe customers. Fourteen Alembic migrations, one linear chain — the schema's replayable memory.
 
 Two design notes for beginners. **UUIDs** (random-looking IDs) cost index size but buy merge safety and unguessable URLs — Priya can't enumerate other learners by counting. **JSONB columns** hold evolving content without a migration per new field — flexibility fenced inside one column, while everything queried stays a real column. Flexibility with boundaries, not instead of them.
 
-<Callout type="lesson" title=" staff lens">
+<Callout type="lesson">
   Name the source of truth per concern and defend it in review: XP server-side, contracts in Pydantic, history in Alembic. Vague ownership is how "just this once" becomes architecture.
 </Callout>
 
-## Topic 6 — Errors are a designed surface
+## Errors are a designed surface
 
 Four codes Priya may meet, each with a meaning and a fix: `400` — her request was malformed (check the shape); `401` — log in first (token missing or dead); `429` — slow down (rate limiter, especially login); `500` — our bug, retry later, and it is already in the structured logs. A fifth case matters most: **validation errors name the field.** "email: invalid format" teaches; "bad request" shrugs. Error messages are user interface — write them for the human on the other side.
 
-## Topic 7 — Directing an AI agent at this API
+## Directing an AI agent at this API
 
 ```text
 You are adding an endpoint to this FastAPI backend.
@@ -132,7 +132,7 @@ Before coding:
 
 Agents default to fat handlers and trusting clients. This prompt forbids both up front.
 
-## Topic 8 — Failure modes of serving layers
+## Failure modes of serving layers
 
 - **Fat handlers.** Logic in routes can only be tested over HTTP — slow, flaky, skipped. Defense: the layer rule, enforced in review.
 - **Trusting the client.** Forged XP, forged progress (BUG-017, resolved). Defense: server decides; client displays.
@@ -140,7 +140,7 @@ Agents default to fat handlers and trusting clients. This prompt forbids both up
 - **Missing rate limits.** Login without throttling invites guessing. Defense: `auth_rate_limit` at the door (verified in source).
 - **Schema drift.** A renamed field breaks every screen at runtime. Defense: the contract test file plus Pydantic as the single shape definition.
 
-## Topic 9 — Exercises
+## Exercises
 
 1. Pick any row in the Topic 1 table. Find its router file, service, and tables. Time yourself — under five minutes means the layer rule works.
 2. Send a malformed submit request (bad JSON). Record the exact error. Is it helpful? Improve one message.
@@ -148,7 +148,7 @@ Agents default to fat handlers and trusting clients. This prompt forbids both up
 4. List every `401` path: which endpoints require login, and what breaks if one is mislabeled public?
 5. Ask an AI agent to add a "retake exam" endpoint with the Topic 7 prompt. Check: no SQL in handler? Tests added?
 
-## Topic 10 — Five things to take with you
+## Five things to take with you
 
 1. Router → service → model, no skips; testable layers are real layers.
 2. The server decides; the client displays — especially rewards.

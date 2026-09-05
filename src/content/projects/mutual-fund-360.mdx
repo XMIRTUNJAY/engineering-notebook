@@ -1,6 +1,6 @@
 ---
 title: "MF360: Mutual Fund Intelligence Platform"
-description: "A DIY investor platform answering six money questions: what you own, what it costs, where you duplicate, what deteriorates, what to review, what works."
+description: "Trustworthy answers from messy Indian mutual-fund data: methodology first, corrections as rows, golden portfolios as proof."
 repo: "https://github.com/XMIRTUNJAY/MF360"
 stack: ["Python 3.11", "FastAPI", "PostgreSQL 16", "Redis", "SQLAlchemy 2", "Alembic", "Next.js 14"]
 category: "Finance / FinTech"
@@ -25,58 +25,74 @@ import { siteUrl } from '../../lib/site';
 
 <ProjectHero
   title="MF360"
-  subtitle="Most investors can't answer six basic questions: what do I own across all folios, what is it really costing me, where am I duplicated, what is deteriorating, what deserves review, what am I doing well? MF360 exists because brokerage statements answer none of them — and spreadsheets answer them once, then rot."
+  subtitle="A DIY investor platform for Indian mutual funds: what you own, what it costs, where you duplicate, what is deteriorating — answered from messy statements with methodology you can read before you trust."
   status="Active build"
   category="Finance / FinTech"
-  score={90}
   repoUrl="https://github.com/XMIRTUNJAY/MF360"
   meta={[
     { label: 'Code files', value: '383 (Python 240)' },
-    { label: 'Unit tests', value: '94 passing' },
+    { label: 'Unit tests', value: '94 passing, 5 failing' },
     { label: 'Doc pages', value: '102 + ADRs' },
     { label: 'Migrations', value: '7, linear' },
   ]}
 />
 
-<TechStack items={['Python 3.11', 'FastAPI', 'PostgreSQL 16', 'Redis', 'MinIO', 'SQLAlchemy 2', 'Alembic', 'Pytest', 'Next.js 14']} />
+> "If it is not right, do not do it; if it is not true, do not say it." — Marcus Aurelius, Meditations 12.17
 
-<EvidenceBar items={[
-  { label: 'Unit tests', value: '94 passed, 5 failed*' },
-  { label: 'Test suites', value: 'unit/integration/api/golden' },
-  { label: 'Docs', value: '102 pages + 11 ADRs' },
-  { label: 'Measured', value: '2026-09-05' },
-]} />
+Two sentences that read like this project's operating manual. Rankings, affiliates, and ads are permanently excluded because selling and advising cannot share a roof — that is the "not right" half. Every formula lives in a versioned methodology document before it lives in code, and corrections are rows rather than edits — that is the "not true" half: never state a number you cannot re-derive.
 
-## What
+## Two ways to read this page
 
-A mutual-fund intelligence platform for DIY Indian investors: import your CAS statement, get a consolidated portfolio, true cost of ownership (regular-vs-direct leakage in rupees), overlap detection, underperformance flags, tax-loss harvesting hints, and reconciled returns. Method-first: every formula lives in a versioned methodology doc before it lives in code.
+- **Understand the system:** The spark → The struggle → The decisions → How it works → Where it stands → Reflection.
+- **Build your own:** Constraints → Architecture → The correction rule → The tutorial series → Exercises at the end.
 
-<ProjectMetadata rows={[
-  { label: 'Language', value: 'Python 3.11 (strict typing)' },
-  { label: 'Shape', value: 'Modular monolith (DDD layers)' },
-  { label: 'Storage', value: 'Postgres 16, Redis, MinIO/S3' },
-  { label: 'State', value: 'JWT sessions, server-side XP' },
-  { label: 'Deploy', value: 'Docker Compose, APScheduler jobs' },
-  { label: 'Tests', value: 'Pytest + golden portfolios + property' },
-]} />
+## The spark
 
-## Why this shape
+Most investors cannot answer six basic questions: what do I own across all folios, what is it really costing me, where am I duplicated, what is deteriorating, what deserves review, what am I doing well? Brokerage statements answer none of them — a CAS file is a flat list of transactions, not a portfolio. Spreadsheets answer them once, then rot, because no spreadsheet survives a scheme merger.
 
-Three pressures: money math must be auditable (hence formulas in docs first, code second, golden portfolios always); Indian mutual-fund data is messy (CAS files, NAV histories, scheme mergers — hence a 4-strategy scheme mapper plus corrections pipeline); and trust is the product (hence PAN encryption, masked display, audit logs, and mission guardrails that permanently exclude rankings, affiliates, and ads).
+So MF360 started from distrust: distrust of statements as answers, of one-off math, of any number without a method behind it. The project is method-first in the literal sense — formulas are written into versioned methodology documents before they are implemented, and 24 golden portfolios stand guard over every change.
+
+## The struggle
+
+**Real statements are hostile.** CAS files arrive in (at least) two formats, names don't match the master list, NAV days go missing, schemes merge and rename mid-history. The ingestion pipeline answered with four mapping strategies carrying confidence scores instead of hope, a corrections pipeline where fixes are rows (old facts are never overwritten), and a NAV heartbeat that notices gaps. Messy input wasn't a phase to get through; it is the permanent condition, and the architecture finally admits it.
+
+**The 5-test drift, still open.** Verification found tests calling `MethodologyVersion.parse` while the implementation exposes `from_string` — a rename that skipped its tests. Five failures, one root cause, sitting in the backlog below. I'm leaving it visible here because it is exactly the rot that methodology versioning exists to prevent, caught by the machinery doing its job. It gets fixed before any new feature.
+
+**The frontend is a scaffold.** The API serves real answers; the Next.js side renders the shape of the product, not the product. Saying so plainly matters more than screenshots of it: this is a backend-and-methodology project wearing a frontend wireframe.
+
+**Money failed at intersections.** Unit tests alone missed the bugs that matter — a merger during a SIP with a missing NAV day. That specific shape of failure is why the golden suite (GP-01…GP-24) exists: lump sums, SIPs, mergers, renames, duplicate uploads, out-of-order data, each with expected holdings, lots, opportunities, and alerts.
 
 <Callout type="decision" title="Why a modular monolith, not microservices">
   One deployable, strict internal boundaries (ADR-001). A solo/small team cannot operate distributed systems honestly — no network partitions to debug, no version skew across services — while DDD layers keep the code splittable later if scale ever demands it.
 </Callout>
 
-## Constraints
+## The decisions
 
-- Money math must be reproducible (methodology versions, golden portfolios).
-- PAN must never appear in plaintext outside encryption (AES-256-GCM + masked display).
-- Content pipeline must survive bad data (validators, dead-letter queue, corrections as rows).
-- No execution, no rankings, no affiliates (mission guardrails, permanently excluded).
-- Must run fully local via Compose (Postgres + Redis + MinIO).
+<Decision
+  title="Frozen entities + value objects for money and identity"
+  problem="Financial identity data (PAN) and money values must be valid everywhere, without checks scattered across handlers."
+  options={["Validate inline at each use", "Value objects with validation in constructors", "Database constraints only"]}
+  chosen="Frozen dataclasses + validating value objects (PAN regex + masking, Decimal percentages, ISIN/AMFI formats)."
+  why="Invalid states become unrepresentable: a PAN object always holds a valid PAN, and its string form returns the masked version so logs can't leak it."
+  tradeoffs="More types to learn; conversion at every boundary. Plain strings with validators would do for throwaway scripts — never for identity or money."
+  result="8 PAN tests, 10 crypto tests; leakage structurally impossible, not just discouraged."
+/>
 
-## Architecture at a glance
+<Decision
+  title="Golden portfolios as the money test suite"
+  problem="Financial calculations need regression protection that unit tests of isolated functions can't give."
+  options={["Unit tests only", "Golden end-to-end scenarios (GP-01…GP-24)", "Manual spreadsheet checks"]}
+  chosen="24 golden scenarios: lump sums, SIPs, mergers, renames, duplicate uploads, out-of-order data, missing NAVs — each with expected holdings, lots, opportunities, and alerts."
+  why="Money bugs hide in interactions, and only full-scenario fixtures catch them."
+  tradeoffs="Fixtures are heavy to author and brittle to methodology changes — hence methodology versioning, so old goldens stay pinned to old rules."
+  result="The suite that would catch a formula regression before any user does."
+/>
+
+Five constraints hold regardless of mood: money math reproducible (versions + goldens); PAN never in plaintext outside AES-256-GCM (masked display everywhere else); the pipeline survives bad data (validators, dead letters, corrections as rows); no execution, rankings, or affiliates — permanently; everything runs local via Compose.
+
+## How it works
+
+<TechStack items={['Python 3.11', 'FastAPI', 'PostgreSQL 16', 'Redis', 'MinIO', 'SQLAlchemy 2', 'Alembic', 'Pytest', 'Next.js 14']} />
 
 <ArchitectureDiagram
   title="Money in, answers out"
@@ -102,37 +118,32 @@ Three pressures: money math must be auditable (hence formulas in docs first, cod
   caption="Raw statements enter; validated facts accumulate; engines answer the six questions. Corrections are rows, not edits."
 />
 
-## Engineering decisions
+Follow Ravi's upload: CAS parse (forgiving) → strict validation → scheme mapping with confidences → corrections as new rows, never edits → NAV heartbeat fills gaps → cost, overlap, tax, and performance engines read settled facts → REST answers, and a read-only agent server offers the same to AI clients. Temporal modeling runs through all of it — schemes resolve as-of any date, multi-hop merger chains followed, circular mappings raising instead of looping forever.
 
-<Decision
-  title="Frozen entities + value objects for money and identity"
-  problem="Financial identity data (PAN) and money values must be valid everywhere, without checks scattered across handlers."
-  options={["Validate inline at each use", "Value objects with validation in constructors", "Database constraints only"]}
-  chosen="Frozen dataclasses + validating value objects (PAN regex + masking, Decimal percentages, ISIN/AMFI formats)."
-  why="Invalid states become unrepresentable: a PAN object always holds a valid PAN, and __str__ returns the masked form so logs can't leak it."
-  tradeoffs="More types to learn; conversion at every boundary. I would choose plain strings with validators only for throwaway scripts — never for identity or money."
-  result="8 PAN tests, 10 crypto tests; leakage structurally impossible, not just discouraged."
-/>
+<ProjectMetadata rows={[
+  { label: 'Language', value: 'Python 3.11 (strict typing)' },
+  { label: 'Shape', value: 'Modular monolith (DDD layers)' },
+  { label: 'Storage', value: 'Postgres 16, Redis, MinIO/S3' },
+  { label: 'State', value: 'JWT sessions, server-side decisions' },
+  { label: 'Deploy', value: 'Docker Compose, APScheduler jobs' },
+  { label: 'Tests', value: 'Pytest + golden portfolios + property' },
+]} />
 
-<Decision
-  title="Golden portfolios as the money test suite"
-  problem="Financial calculations need regression protection that unit tests of isolated functions can't give."
-  options={["Unit tests only", "Golden end-to-end scenarios (GP-01…GP-24)", "Manual spreadsheet checks"]}
-  chosen="24 golden scenarios: lump sums, SIPs, mergers, renames, duplicate uploads, out-of-order data, missing NAVs — each with expected holdings, lots, opportunities, and alerts."
-  why="Money bugs hide in interactions (a merger during a SIP with a missing NAV day), and only full-scenario fixtures catch them."
-  tradeoffs="Fixtures are heavy to author and brittle to methodology changes — hence methodology versioning, so old goldens stay pinned to old rules."
-  result="The suite that would catch a formula regression before any user does."
-/>
+## Where it stands
 
-## What didn't work
+| | |
+|---|---|
+| **Verified** | 94 passed / 5 failed with one isolated cause (methodology-version drift); 7 linear migrations; 102 docs + 11 ADRs; suites for unit/integration/api/golden/security present in source |
+| **Observed** | The doc/docs split (read-only master vs living blueprint) surviving real development; task reports drifting from task status |
+| **Intended** | Zero-failure suite once the drift is fixed; frontend beyond scaffold |
+| **Unknown** | Behavior on a decade of real CAS history; multi-user load |
 
-Resolved, evidenced items only:
-
-**Client-side anything for money.** Rewards and progress computed in the browser were gameable and unverifiable. Evidence: server-authoritative patterns throughout the backend plus audit logging on sensitive actions. Lesson: money decisions happen server-side, always.
-
-**Single test style.** Unit tests alone missed interaction bugs (merger × SIP × missing NAV). Evidence: the golden suite GP-01…GP-24 plus property-test markers and a regression suite for two CAS formats. Lesson: match the test shape to the failure shape — money fails at intersections.
-
-## Measured results
+<EvidenceBar items={[
+  { label: 'Unit tests', value: '94 passed, 5 failed*' },
+  { label: 'Test suites', value: 'unit/integration/api/golden' },
+  { label: 'Doc pages', value: '102 + 11 ADRs' },
+  { label: 'Measured', value: '2026-09-05' },
+]} />
 
 <MetricsTable
   title="Verification results"
@@ -147,6 +158,20 @@ Resolved, evidenced items only:
   caption="*The 5 failures share one root cause: tests call MethodologyVersion.parse while the implementation exposes from_string — a test/source API drift, reported as maintainer backlog, not tutorial content."
 />
 
+## How help was used, and where judgment stayed
+
+This repo shows its agent workflow in the open: `docs/tasks/` holds generated task prompts beside their completion reports, produced under scope guards (one module per task, binary acceptance, hard stop). Delegated: scaffolding, ingestion stages, boilerplate. Kept by humans: the methodology documents (formulas are opinions about money — no agent signs those), the guardrails, the goldens' expected values. Verification is the suite itself, and the suite just proved its worth by catching the methodology drift. One process debt, named in the tutorials: completion reports exist for tasks still marked READY — trackers rot the moment updating them feels optional.
+
+## Reflection
+
+**What worked.** Method-first development: formulas reviewed as prose before they became code. Frozen value objects making leakage unrepresentable. Goldens catching interaction bugs unit tests can't see.
+
+**What didn't.** The methodology rename that skipped its tests (open backlog). Client-side anything for money (moved server-side as a standing rule). The scaffold frontend masquerading — no longer; it's labeled.
+
+**What surprised me.** That the hardest part wasn't math but identity across time: which scheme, as of which date, through which merger. Temporal modeling ate more design hours than every engine combined.
+
+**What I'd change.** Fix the 5-test drift first — no new features until green. Then: real CAS history volume test, frontend past scaffold, and a tracker with an owner instead of a template.
+
 <Timeline
   title="Project timeline"
   items={[
@@ -156,6 +181,6 @@ Resolved, evidenced items only:
   ]}
 />
 
-## Go deeper
+## Build your own
 
-Five hands-on parts following one investor from CAS upload to reviewed portfolio: method, domain core, money math, ingestion, API/security/testing. Start with <a href={siteUrl('/tutorials/mutual-fund-360/01-method-and-monolith/')}>Part 1: method and monolith</a>.
+Reproduce: Compose up, migrate, seed, run the goldens — green except the five known drift failures, which you should see fail exactly as described (a failing test you understand beats a passing suite you don't). Modify: add one validator to ingestion and watch a bad CAS row land in the dead letter queue. Extend: author golden portfolio GP-25 for a case you fear — merger during a SIP is taken; find your own intersection. Re-design: swap one engine's methodology version and feel what "pinned goldens" buys you. The five-part series follows Ravi from upload to reviewed portfolio — start with <a href={siteUrl('/tutorials/mutual-fund-360/01-method-and-monolith/')}>Part 1: method and monolith</a>.

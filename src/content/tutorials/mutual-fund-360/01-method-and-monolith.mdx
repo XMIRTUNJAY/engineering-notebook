@@ -49,7 +49,7 @@ src/mf360/
 
 Dependencies point inward: API calls application, application calls domain, domain imports nothing. A Ravi-facing endpoint like `POST /portfolios/{id}/folios` flows folio route → `CreateFolioCommand` → PAN value object + AES-GCM encryption → repository → response with PAN masked. Learn that one chain and you can read the other fifteen router groups the same way.
 
-<Callout type="lesson" title=" staff lens">
+<Callout type="lesson">
   Juniors navigate by file search; seniors navigate by layer contract. Before touching unfamiliar code, ask "which layer am I in, and which direction do dependencies flow?" — the answer locates every bug faster than grep.
 </Callout>
 

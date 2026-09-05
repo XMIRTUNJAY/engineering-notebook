@@ -1,6 +1,6 @@
 ---
 title: "Data Engineering Mastery Platform"
-description: "A study coach for data-engineering exams: it remembers what you got wrong, tells you what to review, and builds fair mock exams. Explained in plain words, in full depth."
+description: "A study coach for data-engineering exams: how it started, what broke, what was decided, and what the evidence says — explained in plain words."
 repo: ""
 stack: ["Python 3.11", "FastAPI", "PostgreSQL + pgvector", "Redis", "SQLAlchemy 2", "Alembic", "Next.js frontend"]
 category: "Education / Learning"
@@ -25,10 +25,9 @@ import { siteUrl } from '../../lib/site';
 
 <ProjectHero
   title="Data Engineering Mastery"
-  subtitle="Imagine studying for a difficult exam with a coach who remembers every question you missed, tells you each morning exactly what to review, and writes you a fair practice test on demand. This project is that coach, built as software — and this page explains the whole system, simply and completely."
+  subtitle="A study coach for certification exams that remembers what you missed, schedules your reviews, and writes fair mock exams — and the record of how it was reasoned into existence."
   status="Active build"
   category="Education / Learning"
-  score={90}
   meta={[
     { label: 'Who it serves', value: 'One learner: Priya' },
     { label: 'Study brain', value: '6 small math modules, all tested' },
@@ -37,72 +36,69 @@ import { siteUrl } from '../../lib/site';
   ]}
 />
 
-## Topic 1 — The one-minute version
+## Two ways to read this page
 
-**What we are building.** A web app that prepares Priya for data-engineering
-certification exams (Databricks, AWS analytics, and two more).
+- **Understand the system:** The spark → The struggle → The decisions → How it works → Where it stands → Reflection.
+- **Build your own:** Constraints → Architecture → The contract rule → Try the demo → The tutorial series → Exercises at the end.
 
-**Why it matters.** Self-study fails in three predictable ways: learners do
-not know what to study next, they forget on nobody's schedule, and their
-practice tests are unfair. This app fixes all three with simple, checkable math.
+> "It is not that we have a short time to live, but that we waste a great deal of it." — Seneca
 
-**What you will learn.** How a study loop works end to end: recording answers,
-scoring mastery, scheduling reviews, assembling fair exams, keeping content
-trustworthy, handling failure, and running it all on one machine.
+Priya has one hour a day. That constraint shaped more of this system than any technology choice: every feature here exists to stop her hour from leaking — into deciding what to study, relearning what evaporated, or trusting a practice score that means nothing. The scheduling math, the fairness rules, the refusal to burn money on models at runtime all trace back to respecting sixty minutes.
 
-**What you will build.** Follow the five linked parts at the end and you
-rebuild this system piece by piece — and every piece transfers elsewhere:
-recommendation math, scheduling, fair sampling, gated content pipelines.
+## The spark
 
-**Difficulty.** Beginner-friendly. You need basic Python and a rough idea of
-what a database is. Every new term is explained where it first appears.
+I kept watching the same failure: capable engineers studying for months and walking into exams unready — not from laziness, but because their tools answered none of the three questions that matter. What do I study next? What have I forgotten? Am I actually ready? A folder of PDFs answers none of them. A quiz app with random questions answers the third one dishonestly.
 
-**Build time.** Reading this page: about 40 minutes. Rebuilding with the
-tutorials: a few evenings.
+So the project began as those three questions, not as a stack. The stack came later, chosen to serve them: something that remembers (a database), something that schedules (memory science as arithmetic), something that tests fairly (sampling with rules). If you take one thing from this page, take the order — questions first, technology last.
 
-**Prerequisites.** Python 3.11, Docker (it runs the database for you), and
-`make`. One command starts the whole system.
+## The struggle
+
+Three things went wrong enough to leave marks. All three are still visible in the repo, which is the point.
+
+**The math had no tests.** The 2025-09-01 audit found a study engine with zero test framework — scheduling logic deciding real mornings with nothing pinning it down. The fix was the engine split: six pure modules in `backend/app/algorithms/` plus 9 test files, 86 passing. The audit file is still in the repo. It reads uncomfortably. It should.
+
+**The browser gave out rewards.** The app once trusted Priya's browser to award XP, and browsers can lie — to themselves (bugs) and for their owners (cheats). The `BUG-017` comment in `exams.py` records the day that ended: XP is awarded server-side on pass now. Forged progress also creates support tickets nobody can adjudicate, so this was never just about cheating.
+
+**Demo data leaked into real shapes.** Test fixture rows were found sitting in production-shaped data. No user saw them, but the scare rewrote the discipline: seed and teardown are part of the test now, not decoration.
+
+And one honest admission: the progress tracker faithfully records phases stalled for months. Process reveals stalling; it cannot cure it. That is not a failure of the system — it is the system telling the truth, which is all it promised.
+
+## The decisions
+
+<Decision
+  title="Arithmetic recommendations instead of an LLM"
+  problem="Learners need next-step guidance that is consistent, explainable, and free."
+  options={["LLM-driven suggestions", "Weighted deterministic algorithms", "Fixed curriculum order"]}
+  chosen="Six pure-Python modules: mastery, SM-2, weakness, recommendations, paths, exam assembly."
+  why="Same inputs give same outputs; every formula has unit tests; a recommendation can be explained coefficient by coefficient."
+  tradeoffs="No understanding of free-text answers; weights are judgment frozen in code, never A/B tested. Learned ranking only becomes honest with logged outcomes to train on — which don't exist yet."
+  result="86 unit tests in ~4 seconds; recommendations debuggable line by line."
+/>
+
+<Decision
+  title="One Postgres for rows, vectors, and text"
+  problem="Content needs relational queries, similarity search, and keyword search without operating three systems."
+  options={["Postgres + pgvector + FTS", "Postgres + external vector DB", "Separate search service"]}
+  chosen="Postgres 16 with pgvector HNSW, tsvector GIN, JSONB content columns."
+  why="One backup, one migration chain, one pool — and cross-workload joins stay free."
+  tradeoffs="The 1024-dimension contract: changing embedding models migrates data. Past single-node vector scale, or with an independent search team, I would split without regret."
+  result="Semantic search is one indexed SQL query beside everything else."
+/>
+
+| Decision | Option A | Option B | Chosen | Why |
+| -------- | -------- | -------- | ------ | --- |
+| Study brain | LLM suggestions | Fixed order | Deterministic math | Reproducible + free |
+| Search | 3 systems | 1 Postgres | 1 Postgres | One person can run it |
+| Reviews | Random | SM-2 schedule | SM-2 schedule | Memory science |
+| Exam order | Pure random | Seeded shuffle | Seeded shuffle | Fair and re-checkable |
+
+Neither table is universal advice. Each row holds only under this project's constraints: one operator, zero runtime model budget, fairness as a requirement. Change the constraints and the answers change — that is what makes them decisions rather than preferences.
+
+## How it works
 
 <TechStack items={['Python 3.11', 'FastAPI', 'PostgreSQL + pgvector', 'Redis', 'MinIO', 'SQLAlchemy 2', 'Alembic', 'Pytest', 'Next.js']} />
 
-<EvidenceBar items={[
-  { label: 'Unit tests', value: '86 / 86 passing' },
-  { label: 'Coverage (unit)', value: '52% measured' },
-  { label: 'Routers', value: '16 groups' },
-  { label: 'Measured', value: '2026-09-05' },
-]} />
-
-## Topic 2 — Start with the problem
-
-Priya is a working engineer. In twelve weeks she must pass a Databricks
-certification. She has one hour a day. Her problems are concrete:
-
-1. **She does not know what to study next.** A 400-page syllabus is not a plan.
-2. **She forgets.** Without scheduled review, last month's topics evaporate.
-3. **Her practice tests lie.** Random question sets repeat easy topics and skip
-   hard ones, so a passing score means nothing.
-
-A naive solution is a folder of PDFs and a quiz app with random questions.
-It fails all three: no guidance, no memory science, no fairness.
-
-**Problem statement.** Build Priya a daily coach: tell her what to study,
-remind her at the right time, and test her fairly.
-
-**Non-goals.** It does not teach the content itself (concepts come from
-syllabi), it does not replace documentation, and it never pretends an exam
-score equals job skill.
-
-**Success looks like this.** Priya opens the app each morning and sees: today's
-concepts, flashcards due for review, her weakest topics ranked, and — when she
-is ready — a mock exam that samples every section fairly and grades at 70%.
-
-**Constraints.** No AI model may run while Priya studies (answers must be
-reproducible and free). Reviews must follow memory science, not guesses. One
-person must be able to run the whole thing locally.
-
-## Topic 3 — The mental model
-
-The whole system is one loop. Learn it once; everything below is detail:
+The whole system is one loop. Learn it once; the rest is detail:
 
 ```text
 Priya answers a question
@@ -118,90 +114,42 @@ Recommendations refresh
 Reviews are rescheduled
 ```
 
-Six new words, explained once:
+Six terms, explained once and never again:
 
-- **API.** A menu of URLs the app offers. The screen (frontend) orders from
-  this menu; the kitchen (backend) cooks. Example: `POST /exams/generate`
-  means "cook me a new exam".
-- **Database.** The app's notebook. Everything Priya did lives in PostgreSQL
-  (called Postgres): content, progress, history.
-- **Spaced repetition.** A scheduling recipe from memory science (named SM-2):
-  each flashcard carries a difficulty number and a waiting time. Answer right
-  and the wait grows; answer wrong and it shrinks. Review always arrives just
-  before you would forget.
-- **Seeded shuffle.** Randomness with a fixed starting number (a seed). Same
-  seed gives the same question order — so a "random" exam can be re-checked
-  later, exactly.
-- **Vector search.** Finding content by meaning instead of keywords. Each
-  concept gets a list of 1024 numbers (an embedding); similar meanings sit
-  close together, and one indexed database query finds neighbors.
-- **Stratified sampling.** Dealing exam questions like cards from marked decks:
-  a fixed share from each topic and each difficulty, so no section can hide.
+- **API.** A menu of URLs. The screen orders; the backend cooks. `POST /exams/generate` means "cook me a new exam".
+- **Database.** The notebook. Everything Priya did lives in Postgres: content, progress, history.
+- **Spaced repetition (SM-2).** A scheduling recipe from memory science. Each flashcard carries difficulty and a waiting time; right answers stretch the wait, wrong ones shrink it.
+- **Seeded shuffle.** Randomness with a fixed starting number. Same seed, same paper — a "random" exam that can be re-checked.
+- **Vector search.** Finding by meaning: each concept gets 1024 numbers, similar meanings sit close, one indexed query finds neighbors.
+- **Stratified sampling.** Dealing from marked decks — fixed shares per topic and difficulty, so no section hides.
 
-## Topic 4 — First principles
+Three chains connect requirements to what got built:
 
-Three short chains. Each follows the same shape: requirement → constraint →
-what we build.
+**Answers must be reproducible → models vary run to run → the study brain is arithmetic.** Six modules, 86 tests. Models draft content offline behind seven validators, never decide at runtime.
 
-**Chain 1 — answers must be reproducible.**
-Requirement: the same study history must always give the same guidance.
-Constraint: a language model's answers change run to run and cost money.
-Consequence: the study brain cannot be a model.
-Design: six small pure-Python math modules (`mastery`, `retention`,
-`weakness`, `recommendations`, `path_finding`, `exam_assembly` in
-`backend/app/algorithms/`) with 86 unit tests. Models help only offline,
-drafting content behind seven checking stages.
+**One person operates it → every extra store is another 3 AM page → one Postgres.** Rows, vectors, keywords in one backup, one migration chain. Redis holds only temporary receipts.
 
-**Chain 2 — one person must run it.**
-Requirement: a solo builder operates everything.
-Constraint: every extra database is another backup, migration story, and
-3 AM page.
-Consequence: one store or bust.
-Design: a single Postgres holds rows, vectors (pgvector), and keyword search
-(tsvector). Redis keeps only short-lived receipts, such as idempotency keys
-that stop a retried pipeline stage from running twice.
-
-**Chain 3 — content rots.**
-Requirement: learners must never see broken or wrong material.
-Constraint: syllabi arrive messy and models draft imperfectly.
-Consequence: raw material may never touch learners directly.
-Design: a 7-stage pipeline (ingest → extract → generate → validate →
-publish → index → vectorize, the `JobType` steps in
-`backend/app/pipeline/orchestrator.py`) where each stage checks the last
-one's work before passing it on.
+**Content rots → messy syllabi in, broken lessons out → a 7-stage pipeline.** Ingest, extract, generate, validate, publish, index, vectorize — each stage checks the last one's work (the `JobType` steps in `backend/app/pipeline/orchestrator.py`).
 
 <Callout type="decision" title="Why no AI in the learning loop">
-  Exam answers must be reproducible and explainable. Every recommendation is
-  arithmetic you can audit — same inputs, same outputs, free forever.
-  Language models help only offline, drafting content behind seven validators.
+  Exam answers must be reproducible and explainable. Every recommendation is arithmetic you can audit — same inputs, same outputs, free forever.
 </Callout>
 
-## Topic 5 — The contract before the code
+## The contract, then the code
 
-Before any implementation, the app and screen agree on promises. Three real
-ones from `backend/app/api/v1/exams.py`:
-
-**Ask for an exam.** `POST /exams/generate` takes a certification and returns
-an exam: fairly sampled questions, a pass mark of 70%, and an exam id:
+The screen and the backend agree on promises before either is built. Three real ones from `backend/app/api/v1/exams.py`:
 
 ```bash
+# Ask for an exam: certification in, fair paper out (70% to pass)
 curl -X POST http://localhost:8000/api/v1/exams/generate \
   -H "Content-Type: application/json" \
   -d '{"certification": "databricks", "question_count": 20}'
+
+# Hand it in: POST /exams/{exam_id}/submit → score + server-awarded XP
+# Look back: GET /me/history → past attempts, newest first
 ```
 
-**Hand in the exam.** `POST /exams/{exam_id}/submit` takes your answers and
-returns the score plus XP. XP is awarded by the server on pass — never by the
-browser, because browsers can lie (see BUG-017 in Topic 12).
-
-**Review your history.** `GET /me/history` returns your past attempts, newest
-first — the raw material behind every mastery score and streak on screen.
-
-If something is wrong, the API answers honestly: `400` means your request was
-malformed, `401` means log in first, `429` means slow down, `500` means the
-bug is ours. The shape of the promise never changes; only the data does.
-
-## Topic 6 — Architecture, in one picture
+Broken promises get honest codes: `400` malformed, `401` log in first, `429` slow down, `500` our bug. The shape never changes; only the data does.
 
 <ArchitectureDiagram
   title="Where a quiz answer travels"
@@ -216,18 +164,9 @@ bug is ours. The shape of the promise never changes; only the data does.
   caption="One answer updates five things. Each box is a tested pure function; the chain is the product."
 />
 
-Why each box exists — and what breaks if you remove it:
+Follow one submit end to end (module names real, from `backend/app/`): the exams router grades, `exam_service` records, XP lands server-side per BUG-017, `algorithms/mastery.py` recomputes, `weakness.py` re-ranks, `progress_service` persists to Postgres, and the dashboard reads fresh numbers next load. Handlers stay thin; thinking lives where tests run in milliseconds. That split is why the suite finishes in about four seconds.
 
-- **API (FastAPI, 16 router groups).** The menu. Remove it and the screen has
-  nothing to order from.
-- **Algorithms (6 modules).** The brain. Remove one and its feature lies:
-  no mastery, no schedule, no fairness.
-- **Postgres.** The memory. Remove it and every morning starts blank.
-- **Redis.** The scratch pad for temporary receipts. Remove it and a retried
-  click runs twice.
-- **Pipeline (7 stages).** The quality gate. Remove it and rotten content
-  reaches learners.
-- **Next.js screen.** The face. Remove it and only programmers can study.
+Who remembers what: Postgres holds everything that matters (lose Redis and the system slows; lose Postgres and Priya's year is gone — back it up). Redis holds temporary receipts like idempotency keys. The browser holds nothing important, which is why closing a tab mid-exam costs nothing submitted.
 
 <ProjectMetadata rows={[
   { label: 'Built with', value: 'Python + FastAPI backend, Next.js app' },
@@ -238,259 +177,21 @@ Why each box exists — and what breaks if you remove it:
   { label: 'Quality bar', value: '80% coverage floor in CI' },
 ]} />
 
-## Topic 7 — Data flow: follow one answer
+## Where it stands
 
-Trace Priya submitting a mock exam, step by step (simplified; module names
-are real, from `backend/app/`):
+| | |
+|---|---|
+| **Verified** (measured or read from source) | 86/86 unit tests (2026-09-05); 52% unit coverage, engine 93–100%; 16 router groups; 14 migrations, single head; 7 pipeline stages; BUG-017 fixed in source; structlog logging, admin Prometheus endpoint, JWT + rate limits + audit log all present in source |
+| **Observed** (noticed, not benchmarked) | Exam generation feels instant at 20 questions; dashboard loads without perceptible wait locally |
+| **Intended** (designed, not yet proven) | 80% coverage floor holding as code grows; hybrid keyword-plus-vector ranking |
+| **Unknown** (not measured) | Behavior past single-node scale; real-learner retention lift; 60-question exam latency |
 
-```text
-Priya clicks Submit
-  ↓  POST /exams/{id}/submit  (exams.py router)
-Exam service grades each answer
-  ↓  services/exam_service.py
-XP awarded server-side on pass  (BUG-017: browsers can't be trusted)
-  ↓
-Mastery recomputed per topic  (algorithms/mastery.py)
-  ↓
-Weak topics re-ranked  (algorithms/weakness.py)
-  ↓
-Progress saved  (services/progress_service.py → Postgres)
-  ↓
-Dashboard reads the new numbers on next load
-```
-
-One idea to take away: the request handler is thin — it grades, records, and
-delegates. All the thinking lives in small modules that can be tested without
-a database, a network, or a browser. That split is why 86 unit tests run in
-about four seconds.
-
-## Topic 8 — State: who remembers what
-
-Three kinds of memory, three owners:
-
-- **Postgres remembers everything that matters.** Content, attempts, mastery
-  scores, review cards, exam history. If it is not in Postgres, it did not
-  happen. Back it up and Priya's year of study survives anything.
-- **Redis remembers only what is temporary.** Idempotency keys ("stage X of
-  certification Y already ran"), rate-limit counters, caches. If Redis is
-  wiped, the system slows down and retries carefully — nothing true is lost.
-- **The browser remembers nothing important.** Screens, input boxes, display
-  preferences. Close the tab mid-exam and the submitted answers are safe;
-  unsubmitted ones are gone, honestly.
-
-A review card's simplified lifecycle:
-
-```text
-NEW → DUE → REVIEWED → SCHEDULED (next due date)
-              ↓ wrong answer
-         DUE SOONER (shorter interval, lower easiness)
-```
-
-Who can change state: only the backend. The screen asks; the server decides.
-That single rule prevents a whole class of cheating and sync bugs.
-
-## Topic 9 — Two big decisions, honestly told
-
-<Decision
-  title="Arithmetic recommendations instead of an LLM"
-  problem="Learners need next-step guidance that is consistent, explainable, and free."
-  options={["LLM-driven suggestions", "Weighted deterministic algorithms", "Fixed curriculum order"]}
-  chosen="Six pure-Python modules: mastery, SM-2, weakness, recommendations, paths, exam assembly."
-  why="Same inputs give same outputs; every formula has unit tests; a recommendation can be explained coefficient by coefficient."
-  tradeoffs="No understanding of free-text answers; weights are judgment frozen in code, never A/B tested. I would choose learned ranking only with logged outcomes to train on."
-  result="86 unit tests in ~4 seconds; recommendations debuggable line by line."
-/>
-
-<Decision
-  title="One Postgres for rows, vectors, and text"
-  problem="Content needs relational queries, similarity search, and keyword search without operating three systems."
-  options={["Postgres + pgvector + FTS", "Postgres + external vector DB", "Separate search service"]}
-  chosen="Postgres 16 with pgvector HNSW, tsvector GIN, JSONB content columns."
-  why="One backup, one migration chain, one pool — and cross-workload joins stay free."
-  tradeoffs="The 1024-dimension contract: changing embedding models migrates data. I would split past single-node vector scale or with an independent search team."
-  result="Semantic search is one indexed SQL query beside everything else."
-/>
-
-| Decision | Option A | Option B | Chosen | Why |
-| -------- | -------- | -------- | ------ | --- |
-| Study brain | LLM suggestions | Fixed order | Deterministic math | Reproducible + free |
-| Search | 3 systems | 1 Postgres | 1 Postgres | One person can run it |
-| Reviews | Random | SM-2 schedule | SM-2 schedule | Memory science |
-| Exam order | Pure random | Seeded shuffle | Seeded shuffle | Fair and re-checkable |
-
-## Topic 10 — Testing: what each layer prevents
-
-The repo has three test layers (`backend/tests/`): 9 unit files, 5
-integration files, 1 contract file. Each layer catches a different embarrassment:
-
-- **Unit (algorithms).** Would a wrong SM-2 formula silently schedule reviews
-  years out? `test_retention.py` pins the math. Would exam assembly ever deal
-  two questions twice? `test_exam_assembly.py` forbids it. These run without a
-  database in seconds — 86 passing, engine modules at 93–100% coverage.
-- **Integration (services + database).** Does grading actually persist an
-  attempt a dashboard can read back? Unit tests can't see that seam; the 5
-  integration files can.
-- **Contract (API promises).** If someone renames a response field, every
-  screen breaks at runtime. The contract file nails the shapes down.
-
-What each test prevents, in one line: the bug that passes code review because
-it looks right. And the honesty note: overall unit coverage is 52% — the
-engine is fortress-tested, the edges are thinner. The Makefile enforces the
-floor in CI (`quality: lint format type-check test`).
-
-## Topic 11 — Security review, practically
-
-No runtime model means no prompt-injection surface at all — a genuine security
-dividend of the deterministic design. What remains, all verified in source:
-
-- **Passwords.** Hashed on the server (`get_password_hash` in
-  `app/core/security.py`), never stored or logged in plain text.
-- **Sessions.** Short-lived access tokens plus longer refresh tokens
-  (`create_access_token`, `create_refresh_token`) — a stolen access token
-  expires quickly by design.
-- **Brute force.** Login attempts are rate-limited (`auth_rate_limit`), so
-  password guessing is throttled at the door.
-- **Who did what.** An audit middleware writes security-relevant actions to an
-  `AuditLog` table — when something odd happens, there is a trail.
-- **Rewards.** Server-side XP (BUG-017) — the oldest cheat in web apps,
-  closed: the browser displays, the server decides.
-- **Input shape.** Request bodies are Pydantic models — malformed JSON is
-  rejected at the boundary with `400`, never inside calculations.
-
-Not yet done (honest gaps, not hidden): no penetration test has been run, and
-admin endpoints rely on role checks that deserve their own test file.
-
-## Topic 12 — Observability: the 2 AM question
-
-"If this fails at 2 AM, what would I wish I had?" The repo already answers
-most of it:
-
-- **Structured logs.** `structlog` in routers and services: every important
-  event carries context (who, which exam, which stage), so logs can be
-  searched instead of read.
-- **Metrics.** A Prometheus endpoint (admin-only, in `app/api/health.py`):
-  scrape it and graph error rates, latency, and pipeline stage durations.
-- **Audit trail.** The `AuditLog` table answers "who changed what" after the
-  fact — the question logs alone can't answer.
-- **Pipeline visibility.** Each of the 7 stages records idempotency keys in
-  Redis: at 2 AM you can see exactly which stage died and re-run just that one.
-
-Still missing: alerting rules (metrics without alarms are decoration) and a
-dashboard. Those are recommendations, not claims.
-
-## Topic 13 — Production readiness, honestly
-
-| Concern | Prototype (today) | Production (before real users) |
-| ------- | ----------------- | ------------------------------ |
-| Auth | JWT + rate limits, working | Add lockout + password reset review |
-| Database | Local Postgres via Compose | Managed Postgres + tested backups |
-| Secrets | `.env` file | Secret manager, rotation |
-| Errors | Honest status codes | Error tracking service |
-| Observability | Logs + metrics endpoint | Dashboards + alert rules |
-| Content | Seeded demo syllabus | Real syllabus license + review rota |
-| Scale | Single node | Read replicas when measured slow |
-| Admin | Role checks exist | Dedicated tests for every check |
-
-The rule used throughout: nothing moves to the right column before a
-measurement justifies it — the same discipline as the one-store decision.
-
-## Topic 14 — Cost, without fairy tales
-
-Running it today costs **$0 above the machine**: Postgres, Redis, and the app
-all run as local Docker containers; the study brain is arithmetic, so there is
-no per-answer model bill. That zero is a designed property, not luck.
-
-If Priya's friends join (estimates — verify current pricing before budgeting):
-
-- Small managed Postgres with pgvector: on the order of tens of dollars
-  a month.
-- App hosting (one container): single digits to tens of dollars a month.
-- Domain + backups storage: a few dollars a month.
-
-No LLM line item at any scale — the architecture guarantees it, because no
-request path calls a model. The most expensive part of this system is the one
-it refused to build.
-
-## Topic 15 — What happens when things go wrong
-
-**Client-awarded XP (evidence: BUG-017).** The app once trusted the browser
-to grant rewards; browsers can lie. The comment at `exams.py:233` records the
-fix: XP is awarded server-side on pass. Lesson: name the source of truth per
-concern — the server owns rewards, the browser only displays them.
-
-**Untested math.** The 2025-09-01 audit found no test framework. The engine
-split plus 9 test files followed — 86 passing, engine modules at 93–100% each.
-Lesson: untested code isn't just risky, it's unteachable.
-
-**Polluted demo data.** Test fixture rows were found sitting in
-production-shape data. Lesson: seed and teardown are part of the test, not
-decoration.
-
-**A pipeline stage crashes halfway.** Detection: the stage's idempotency key
-is missing from Redis. Behavior: re-running resumes instead of duplicating,
-because each stage checks its key first. Lesson: make every stage safe to
-retry, then crashes become boring.
-
-**The database disappears.** Detection: health check fails, screens show an
-honest error. Behavior: nothing is lost that Postgres had already committed;
-Redis contents rebuild on demand. Recovery: restore the backup, re-run
-migrations (`make migrate` is idempotent — 14 applied, single head), restart.
-Lesson: boring recovery beats clever recovery.
-
-## Topic 16 — Build it, break it, extend it
-
-Five parts follow Priya from signup to mock exam — each one vertical slice
-with goal, contract, code, command, and checkpoint:
-
-1. <a href={siteUrl('/tutorials/data-eng-mastery/01-repo-and-method/')}>Repo structure and the spec-driven method</a>
-2. <a href={siteUrl('/tutorials/data-eng-mastery/02-learning-engine/')}>The learning engine: six modules of checkable math</a>
-3. <a href={siteUrl('/tutorials/data-eng-mastery/03-api-and-data/')}>API and data: 16 routers over one database</a>
-4. <a href={siteUrl('/tutorials/data-eng-mastery/04-content-pipeline/')}>Content pipeline: seven gates before learners</a>
-5. <a href={siteUrl('/tutorials/data-eng-mastery/05-knowledge-capstone/')}>Knowledge systems and capstone</a>
-
-Reproduce it on a clean machine (real commands from the repo's Makefile):
-
-```bash
-make install     # dependencies
-make dev-up      # Postgres + Redis via Docker
-make migrate     # apply the 14 migrations
-make seed        # demo content
-make test-unit   # the 86 tests — expect all green
-```
-
-Checkpoint: `make test-unit` prints 86 passed. If it does not, stop — your
-environment differs, and everything below depends on this step.
-
-Exercises (understanding, not syntax):
-
-1. Delete the recommendations module. Which screens go blank, and why does
-   the rest keep working? (Teaches boundaries.)
-2. Change one SM-2 weight. How does Priya's Tuesday change? (Teaches that
-   parameters are product decisions.)
-3. Ask an AI agent to add a leaderboard anti-cheat rule — but give it the
-   BUG-017 comment first, then review whether its speedup respects
-   server-side truth. (Teaches directing AI with evidence.)
-4. Break one pipeline validator on purpose. Where does the bad content stop?
-   (Teaches gates.)
-5. Measure one thing: how long does exam generation take for 60 questions?
-   Write it down. Congratulations — you now have the project's first
-   performance number. (Teaches that unmeasured claims are wishes.)
-
-Extension map: reproduce exactly → change one weight → add a subject →
-put it online (auth review, backups, monitoring) → replace SM-2 with your own
-scheduler and compare fairly.
-
-## The five things to remember
-
-1. Same inputs must give same outputs — that is why the study brain is math,
-   not a model.
-2. Name the source of truth per concern (server owns XP, pipeline owns
-   content quality).
-3. One store you can operate beats three systems you cannot.
-4. Gates between raw material and learners; validators are features.
-5. Untested code is unteachable — the tests are part of the lesson.
-
-## Measured results
+<EvidenceBar items={[
+  { label: 'Unit tests', value: '86 / 86 passing' },
+  { label: 'Coverage (unit)', value: '52% measured' },
+  { label: 'Routers', value: '16 groups' },
+  { label: 'Measured', value: '2026-09-05' },
+]} />
 
 <MetricsTable
   title="Verification results"
@@ -504,6 +205,32 @@ scheduler and compare fairly.
   ]}
   caption="Unit tests and coverage were executed for this case study. Integration, contract, and security figures are CI-side — reported from workflow files, not verified by execution here."
 />
+
+Running it costs $0 above the machine — containers locally, arithmetic for a brain, no per-answer model bill. That zero is designed, not lucky. Managed hosting would add tens of dollars a month (estimate — check current pricing); there is no LLM line item at any scale, because no request path calls a model.
+
+## How AI was actually used here
+
+The repo commits its own agent instructions (`AGENT.md`, `CLAUDE.md`), which is the honest version of "AI-assisted": the agent reads the same specs, ADRs, and layer rules a human teammate would. What gets delegated: implementation inside a reviewed plan, tests, validators, boilerplate. What doesn't: the decisions above, the weights, the fairness rules, the call on what ships.
+
+Verification is mechanical, not hopeful: `make test-unit` must stay green, the layer rule is checked in review, new magic numbers need owners. One gap I'll name plainly: agent mistakes aren't logged anywhere — there is no record of what agents got wrong, so that particular lesson can't compound yet. The test suite catches the errors; the absence of a log means the *patterns* escape.
+
+## Reflection
+
+**What worked.** The maps survived a year — specs still describe the code. The engine split turned untestable math into 86 green tests. One store keeps the whole thing operable by one person.
+
+**What didn't.** Fixture rows in production-shaped data (fixed with seed/teardown discipline). Client-awarded XP (fixed server-side). The tracker recording stalled phases nobody resumes (unfixed — process reveals, humans resume).
+
+**What surprised me.** How much of "study app" turned out to be scheduling and sampling rather than content. The content matters least and breaks most — hence the pipeline getting the heaviest machinery.
+
+**What I'd change.** Write the dimension contract before the first embedding lands (discovered, not designed). Collapse the duplicate flat/integration test layouts. Turn the progress tracker from honest record into weekly ritual.
+
+**What remains unsolved.** Whether the mastery weights match reality — they are judgment, never calibrated against logged outcomes. That experiment is scoped and waiting: hypotheses first, numbers after.
+
+## Build your own
+
+Reproduce it exactly (`make install`, `dev-up`, `migrate`, `seed`, `test-unit` — 86 green is your checkpoint), then: change one SM-2 weight and watch Priya's Tuesday move; break one validator and see where bad content stops; ask an agent to add a feature using the repo's own instruction files, then review it like a skeptic; measure exam-generation latency for 60 questions and write the number down — it becomes the project's first performance fact.
+
+Five things worth keeping: same inputs, same outputs — that is why the brain is math. Name the source of truth per concern. One store you can operate beats three you cannot. Validators are features, not overhead. Untested code is unteachable.
 
 <Timeline
   title="Project timeline"

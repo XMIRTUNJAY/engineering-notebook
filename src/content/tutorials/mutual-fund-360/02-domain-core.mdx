@@ -58,7 +58,7 @@ Read the last four lines twice: `__str__` returns the mask, marked pragma-no-cov
 
 All entities are `@dataclass(frozen=True)`: User, Portfolio, Folio, Scheme, Plan, NAV (with a `superseded_by_id` correction chain — old NAVs are never overwritten, only superseded). Frozen means no handler can mutate shared state as a side effect; change requires constructing the next version explicitly. Money and identity deserve immutability; the codebase agrees structurally, not just culturally.
 
-<Callout type="lesson" title=" staff lens">
+<Callout type="lesson">
   Immutability here isn't aesthetic — it's the reason no handler can corrupt shared money state as a side effect. When everything is frozen, every change is explicit, reviewable, and testable. Mutable domain objects make every bug report start with "who touched this last?"
 </Callout>
 

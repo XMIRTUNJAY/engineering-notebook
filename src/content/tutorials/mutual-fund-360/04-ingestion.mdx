@@ -36,7 +36,7 @@ Re-uploads and AMC fixes arrive as deltas keyed on natural identity (folio + sch
 
 Nightly APScheduler rhythm (IST): download AMFI's NAVAll.txt (~2,000 schemes) → parse flexible columns → upsert in 500-row batches → normalize → recalculate → reports. Partitioned monthly tables stay six months ahead via a daily partition job; a portfolio-level advisory lock serializes concurrent rebuilds. SLAs are explicit (NAV fresh within 4 hours, CAS processed in 2 minutes, full rebuild under 30 seconds) — and jobs, batches, and Bronze records with SHA-256 hashes make every miss diagnosable.
 
-<Callout type="lesson" title=" staff lens">
+<Callout type="lesson">
   Data quality is a pipeline property, not a data property. Same bytes through parse→validate→correct→audit produce trust; through a direct insert they produce incidents. When inheriting a pipeline, read it backwards from the audit trail: whatever can't explain itself is where your next outage lives.
 </Callout>
 

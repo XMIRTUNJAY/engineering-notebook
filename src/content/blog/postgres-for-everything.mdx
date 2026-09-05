@@ -29,7 +29,7 @@ ORDER BY similarity DESC LIMIT :k
 
 **Your turn:** add the pgvector extension, one embedding column on your core content table, and this query shape behind your existing search box. tsvector GIN indexes cover keywords beside it; JSONB holds evolving content without per-field migrations. Ship that before anything fancier — then measure whether "fancier" is needed at all.
 
-<Callout type="lesson" title=" staff lens">
+<Callout type="lesson">
   Shopping impulse disguised as architecture is the most expensive beginner mistake in infrastructure. Implement on what you have, measure, and let the measurement — never the talk — justify the second system.
 </Callout>
 
