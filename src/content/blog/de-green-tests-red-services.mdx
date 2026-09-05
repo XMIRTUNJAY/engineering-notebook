@@ -1,0 +1,93 @@
+---
+title: "Green Tests, Red Services: The Suite Passed and the Backend Still Disagreed"
+description: "Eighteen failing tests fixed to 86/86 in data-eng-mastery — and the service-layer drift the suite didn't catch: stale columns, duplicate SM-2 math, a canonical module nobody calls."
+pubDate: 2026-09-05
+---
+
+import Callout from '../../components/case-study/Callout.astro';
+import { siteUrl } from '../../lib/site';
+
+> "It is not because things are difficult that we do not dare; it is because we do not dare that they are difficult." — Seneca, *Moral Letters*
+
+Nobody dared the reconciliation. The test suite — eighteen failures across four modules — got its campaign, its fix report, its 86/86. Genuine work, verified below. But beside it sat the same disease in the service layer: progress code reading columns that don't exist, flashcards speaking field names the model never had, three hand-rolled copies of scheduling math next to the canonical module nobody calls. The suite went green. The services stayed red. Both statements are true, and the distance between them is this article.
+
+Priya's dashboard aggregates her week: time studied, accuracy, mastery. The numbers come from the analytics service, which asked the database for `time_spent_seconds`. The database keeps `time_ms`. Every query carrying that name died with an `AttributeError` — eight tests, all red, all pointing at the same seam: the service layer and the models disagreed about what things are called, and Python, being Python, declined to mention it until runtime.
+
+**You are here:** part 5 of the data-eng-mastery investigations (the <a href={siteUrl('/tutorials/data-eng-mastery/02-learning-engine/')}>tutorial series</a> covers the engine this math serves; the <a href={siteUrl('/projects/data-eng-mastery/')}>project hub</a> tells the whole story). More in this series: <a href={siteUrl('/blog/de-nobody-could-log-in/')}>Nobody Could Log In</a> · <a href={siteUrl('/blog/de-contract-drift/')}>Two Codebases, One Argument</a> · <a href={siteUrl('/blog/de-silent-writes/')}>Two Writes That Silently Discarded You</a> · <a href={siteUrl('/blog/de-dead-code-paths/')}>The First Customer Crashed Checkout</a> · <a href={siteUrl('/blog/de-plan-said-done/')}>The Plan Said Done</a> · <a href={siteUrl('/blog/de-browser-xp/')}>I Let the Browser Award XP</a>.
+
+## The situation
+
+The study engine's services compute over database models: attempts, progress rows, mastery scores. The repo's own `docs/FAILURE_FIX_REPORT.md` (2025-08-23) records the campaign that took the suite from eighteen red to 86/86 green. That document is the primary source for the first half of this article; I re-verified its headline and its surviving patterns in current source. The second half — the services the suite didn't cover — I verified myself, line by line, and it is less comfortable.
+
+## What I thought
+
+Reconstructed: the services were written against a mental model of the schema — `time_spent_seconds`, `quiz_attempts_count`, `mastery_level` as a float — while the models said `time_ms`, `quiz_total`/`quiz_correct`, `mastery_score` as a 0–1000 integer. Neither side was crazy; the service names read naturally, the model names are precise. The disease was the gap: **two vocabularies for one reality, with no compiler in between.** Python will not tell you `quiz_attempts_count` doesn't exist until the query runs. The test suite is the only thing standing in that gap — and where tests existed, they stood there flashing red, which means they were working. Where tests didn't exist, the gap stood unguarded. Both outcomes are in this article.
+
+## What broke
+
+The eighteen, condensed from the fix record:
+
+- **Analytics asked for columns that don't exist** (8 tests): `time_spent_seconds`, `quiz_attempts_count`, `quiz_correct_count`, `mastery_level` — four invented names against real columns. Every one an `AttributeError` at query time.
+- **A filter compared across scales**: `mastery_level >= 0.7` against a 0–1000 column. Every learner on earth scores above 0.7 out of 1000 — the filter passed everything, silently. The quiet failures are always worse than the loud ones.
+- **A library-signature guess**: `func.case((condition, value), else_=0)` — `else_` isn't valid there.
+- **An inverted graph**: path finding incremented the in-degree of the prerequisite instead of the dependent — Kahn's algorithm running backwards — plus a `get_depth()` with no cycle detection (infinite recursion on any cyclic graph).
+- **A generator wearing a list's type**: `rank_recommendations` used `yield` while promising `-> list[dict]`; a hardcoded `"action_type": "review"` ignoring the computed value; the target concept left inside its own learning path; a `search` parameter the tests called and the service lacked.
+
+And the half the suite never covered — verified by me in current source, 2026-09-05:
+
+- `progress_service.py` still reads `p.quiz_attempts_count` (`:93,157,162-163`) — a column the models don't have.
+- `flashcard_service.py` still calls `cache.invalidate(...)` (`:73,141,170`) — a method the cache manager doesn't have — and still constructs cards with `front=`/`back=` (`:132,161`) — fields the model doesn't have (`question`/`answer`).
+- Three inline SM-2 reimplementations persist (flashcard ease math at `:195-232`, among others) while the canonical `sm2_next_review` sits in `algorithms/retention.py:15` — defined, tested, and uncalled by the services (no service references it).
+
+<Callout type="lesson">
+  The pattern across both halves: the fix report fixed what the tests touched; the services nobody tested kept the disease. Coverage isn't a number here — it's a map of which seams have guardians and which don't. The uncovered seams are exactly where the next eighteen reds are already growing.
+</Callout>
+
+## The investigation
+
+The 2025 campaign shows the right shape: one failure class at a time, each traced to the seam rather than the symptom. AttributeErrors → compare service names against model columns, rename to reality. Wrong filter results → check the column's actual scale, convert at the boundary. RecursionError → add the visited set. Wrong order → re-derive Kahn's. My 2026 contribution is the other half of the same method applied where no tests pointed: grep the service layer for the same invented names (`quiz_attempts_count`, `front=`, `cache.invalidate`, inline ease math) and compare each against its model. It took under an hour and found four live sites. The method is cheap; the discipline to run it where nothing is red yet is the rare part.
+
+## The decision
+
+| | Fix services to the models | Fix models to the services | Leave the untested services |
+|---|---|---|---|
+| Cost | Edit call sites; migrate nothing | Migrations; stored data at risk | Zero |
+| Durability | Lasts where tests pin it | Same, plus migration risk | The next incident |
+| Decision | **Chosen (where done)** | Rejected | Currently true by default — **should be rejected explicitly** |
+
+The direction rule, stated plainly: **reconcile toward the thing that's hardest to change.** The database is stored truth; migrations are expensive; services are cheap to edit. (The one legitimate exception: test expectations changed where the *response contract* was being redesigned — a product decision, not a typo. Editing tests to match broken code is always available and always wrong; redesigning a contract openly is the one case where the test moves.)
+
+## The fix
+
+What landed (verified): analytics aggregations read `time_ms` (`analytics_service.py:65` and neighbors); path finding carries its visited set (`path_finding.py:16-21`); `rank_recommendations` accumulates and returns a real list (`recommendations.py:129`); practice answers flow through the canonical `calculate_mastery` into integer columns with string levels (`questions.py:324-363`); concept listing accepts `search`. What did *not* land: the progress columns, the flashcard field names and cache calls, the SM-2 consolidation. The suite's 86 green pins hold the first list; nothing pins the second. That asymmetry is the article's entire point, and the backlog's next campaign is already scoped by it — file, line, and replacement named.
+
+## How I verified it
+
+The fix record attests 86/86 with per-module breakdowns; I re-verified the headline and spot-checked the surviving patterns (time_ms aggregations, visited-set guard, list return, canonical mastery path). The open service sites I verified directly with line numbers above — present tense, current source, no inference. What I did not do: execute the unit suite myself, so the green count is attested (record + pins), not witnessed. And the untested-services half has no suite to run — its verification *is* the line-numbered reading, until someone writes the tests. If that someone is you, start with `progress_service.py:93` and work outward; the seam map in this article is your test plan.
+
+## What I missed
+
+Two misses, one old, one mine. The old: nobody wrote the column contract where both sides could see it — models in one directory, services in another, names drifting because nothing forced agreement except runtime. Mine: I nearly wrote this article as a victory lap for 86/86. The service-layer grep took minutes and reversed the ending. **Celebrate the green, then grep the untested.** A passing suite describes the tested system; the system is larger than the suite; the difference is where you look next.
+
+## What I would do differently
+
+Contract tests at the seam from day one — not for endpoints (part 2's story) but for *service-to-model* field usage: a test per service query asserting its columns exist on the model. SQLAlchemy makes this cheap (inspect the model; assert the attribute). And one hard rule with a hard name: no second implementation of a pure algorithm while the canonical module exists — the SM-2 triplication should have been a review-blocking comment the day the second copy appeared. Current fixes stay; the seam tests would have prevented both halves.
+
+**Your turn:** pick your least-tested service module. List every column name it touches. Diff against the model. If you find even one invented name, you have your next red test — write it before the fix, watch it fail, then reconcile.
+
+## The principle
+
+Green tests prove the seam has a guardian; they don't prove every room is guarded. The suite is a map of where you've dared to look — coverage measured in *seams guarded*, not lines executed. When the tests pass and the system still disagrees with itself, believe both, and go read the untested half.
+
+## Evidence
+
+- `docs/FAILURE_FIX_REPORT.md` (2025-08-23) — 18-failure record, primary source for the campaign half
+- `backend/app/services/analytics_service.py:65` — `time_ms` aggregation (verified 2026-09-05)
+- `backend/app/algorithms/path_finding.py:16-21` — visited-set guard (verified)
+- `backend/app/algorithms/recommendations.py:129` — list return (verified)
+- `backend/app/algorithms/retention.py:15` — canonical SM-2, uncalled by services (verified)
+- `backend/app/services/progress_service.py:93,157,162-163` — stale columns, OPEN (verified)
+- `backend/app/services/flashcard_service.py:73,132,141,161,170,195-232` — stale fields/calls/inline math, OPEN (verified)
+- Missing: my own suite execution (attested, not witnessed)
+
+Related: the <a href={siteUrl('/projects/data-eng-mastery/')}>data-eng-mastery project page</a>, <a href={siteUrl('/tutorials/data-eng-mastery/02-learning-engine/')}>Part 2: the learning engine</a>.

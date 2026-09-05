@@ -1,0 +1,94 @@
+---
+title: "The Plan Said Done: A Hardening That Exists Mostly as Checkmarks"
+description: "A leaked API key still in config, token hardening absent from every branch, pipeline stubs reporting zeros — and the untracked plan file that marks them all done."
+pubDate: 2026-09-05
+---
+
+import Callout from '../../components/case-study/Callout.astro';
+import { siteUrl } from '../../lib/site';
+
+> "Some things are up to us, and some things are not up to us." — Epictetus, *Enchiridion*
+
+Whether the key is rotated is up to whoever holds the NVIDIA console. Whether the plan is tracked, dated, and backed by commits is up to us. This article is about the second kind of thing — the up-to-us kind — because when I went to write the hardening chapter of this series, I found checkmarks where I expected diffs, and the repository, asked directly, declined to confirm them.
+
+The setup: the repo carries a fix plan — thorough, well-organized, fifty-plus items across six tiers — with the security and pipeline tiers marked done. Refresh-token rotation with a Redis blacklist: done. Production refusing weak crypto: done. CSRF surface removed: done. Validation stub replaced with honest reporting: done. Vectorizer dimension guard: done. I checked each against the source on 2026-09-05. The token rotation is absent from the working tree, from HEAD, and from `main`. The CSRF line is unchanged. The validation stub still returns its zeros. The vectorizer still carries its always-false filter. And the plan file itself is untracked by git — no commit, no date discipline, no review. Checkmarks all the way down, and below them, the code as it was.
+
+**You are here:** part 6 of the data-eng-mastery investigations (the <a href={siteUrl('/tutorials/data-eng-mastery/03-api-and-data/')}>tutorial series</a> covers how it works; the <a href={siteUrl('/projects/data-eng-mastery/')}>project hub</a> tells the whole story). More in this series: <a href={siteUrl('/blog/de-nobody-could-log-in/')}>Nobody Could Log In</a> · <a href={siteUrl('/blog/de-contract-drift/')}>Two Codebases, One Argument</a> · <a href={siteUrl('/blog/de-silent-writes/')}>Two Writes That Silently Discarded You</a> · <a href={siteUrl('/blog/de-dead-code-paths/')}>The First Customer Crashed Checkout</a> · <a href={siteUrl('/blog/de-green-tests-red-services/')}>Green Tests, Red Services</a> · <a href={siteUrl('/blog/de-browser-xp/')}>I Let the Browser Award XP</a>.
+
+## The situation
+
+Hardening is the work between "works on my machine" and "safe to run": secrets out of the repo, tokens that rotate and die, production refusing insecure configuration, pipeline stages that report honestly, guards on the admin surface. The plan assigned all of it, in the right order, with real technical judgment behind each item. Then it marked the items done. The question this article answers is narrow and factual: for each marked-done hardening item, does the repository contain the change? I checked ten. Three landed. Seven did not. The git history — bulk commits, one audit commit, a dirty tree — backs nothing either way, because the plan was never committed.
+
+## What I thought
+
+My first assumption, reading the plan: the checkmarks describe merged work and my job is to narrate it. That assumption survived exactly one grep. The mental model underneath — *the plan is a record of the work* — is true only when the plan is maintained with the work: updated in the same change, reviewed in the same review, committed in the same commit. An untracked plan file edited at unknown times is not a record; it is a rumor with checkboxes. The correction I had to make mid-investigation: **read the plan as a suspect, not a source.** Every claim gets a grep. The grep is the article.
+
+## What broke
+
+Item by item, plan claim vs. source, all checked 2026-09-05:
+
+- **Leaked API key (P0.1, marked done).** `config.yml` still carries a live-looking `nvapi-` key in plaintext (I will not quote it — leaked secrets don't belong in incident reports either). Rotation status unknowable from inside the repo; history scrub explicitly skipped by decision. The plan's own notes admit the scrub was skipped — honest — while the file still leaks — the part that matters.
+- **Refresh-token rotation + blacklist (P2.1, marked done).** No `jti`, no blacklist, no reuse detection anywhere in `backend/app` — checked the tree, HEAD, and `main`. The design in the plan is sound (blacklist with TTL, fail-open on Redis outage, audit logged reuse). None of it is in the repo.
+- **CSRF posture (P2.3, marked done).** `main.py:132` still sets `allow_credentials=True`. Unchanged.
+- **Validation honesty (P0.4a, marked done).** `_run_validation` still returns hardcoded `validated: 0, passed: 0, failed: 0` (`orchestrator.py:328`). The honest-skipped rewrite is not in the tree.
+- **Vectorizer (P0.4c–d, marked done).** The always-false `content_hash != content_hash` filter is still there (`vectorizer.py:36`); no dimension guard at the documented site.
+- **FTS indexer (P0.4b, marked done).** `SET fts = ...` against the non-existent column is still there (`indexer.py:23,35`).
+- **Concept-generator duplicate (P0.2, marked done).** `status: str = "draft"` twice (`:54,58`). Still there.
+
+And, for fairness, what *did* land (all verified): the spec validator script exists and the CI job has something to run; the `_to_uuid` helper exists; the accidental nested `backend/backend/` directory is gone; the exam `submitted_at` column arrived via a real migration; the GDPR handler does real bulk deletes; the JWT secret preview is gone from the logs; question listing requires auth; ten contract tests exist. Real hardening happened — where it was tracked in the audit and the commits. The pattern isn't "nothing was done." It's "done means committed, and only the committed parts are done."
+
+<Callout type="lesson">
+  The discriminator for every item above took one command: search the source for the change the plan describes. `git log --all` shows the plan file itself was never committed — which I checked because an untracked plan can be edited by anyone at any time, with no history of when a box was ticked or why.
+</Callout>
+
+## The investigation
+
+The method, stated as a recipe since it generalizes: (1) read the plan claim and name the artifact it implies (a function, a flag, a deleted line); (2) grep the tree for the artifact; (3) grep HEAD and `main` to rule out branch confusion; (4) check whether the plan file is tracked, to weight its testimony. Step 4 is the one investigators skip: an untracked document has no provenance — boxes can be ticked aspirationally ("will be done by merge"), accidentally, or by a different checkout's author. What was ruled out: branch confusion (all three refs agree), partial application (the designs would leave *some* trace — a helper, an import, a config key — and leave none), and my own grep error (each negative was re-checked with variant patterns).
+
+## The decision
+
+| | Trust the plan, narrate the fixes | Verify each item, report the split |
+|---|---|---|
+| Comfort | A clean hardening story | An uncomfortable one |
+| Truth | Repeats seven falsehoods | Seven opens + three confirmed landings |
+| Downstream | Readers trust a key is rotated | Readers check the console themselves |
+| Decision | Rejected | **Chosen** |
+
+There was never a real choice — this series' founding rule is that the repository is the source of truth, and a plan is repository content like any other: weighed by provenance, verified by grep. What I gave up: a tidy ending. The hardening chapter of this project is two-thirds unwritten, and this article is a map of the missing pages, not the pages.
+
+## The fix
+
+There is no code fix in this article — the fixes are the backlog, itemized above with file and line. The fix this article *does* propose is procedural, and it's cheap: track the plan (commit it), date every entry, and never tick a box without the commit hash beside it. "Done" means merged and verified; the proof is a hash, not a glyph. If I owned this repo tomorrow, my first commit would be the plan file itself with today's verification column appended — seven boxes unticked, three confirmed, each with the grep that decided it. That commit is the entire hardening program's missing first step.
+
+## How I verified it
+
+Every negative above is a searched absence (named patterns, three refs for the load-bearing ones), every positive a read line, all dated 2026-09-05 and listed in Evidence. What I did not do: inspect remotes beyond `main`, read reflogs or stashes for lost work (the "temporary audit changes" commit suggests churn I didn't excavate), or determine *why* the boxes were ticked — intent is unknowable from the artifact, so I report the gap, not a motive. If any of the seven lands after publication, the verification column updates with a hash. That is how this ends: not with trust, with hashes.
+
+## What I missed
+
+I nearly wrote the tidy version. The plan is well-written — genuinely good designs, correct priorities — and good prose is persuasive; my first draft narrated the rotation scheme as fact because the *design* was convincing. The general error: **confusing a good plan with a true record.** Design quality and completion status are independent variables, and reviewing them in one glance merges them. Now I read plans twice: once for judgment, once for existence — and the second reading is grep.
+
+## What I would do differently
+
+For any project: the fix plan lives in git from day one, each item carries `status | commit | verified-by`, and CI enforces the load-bearing subset (the spec validator pattern from this very repo — an existing, landed mechanism — generalizes: every "done" that can be grepped, is grepped, on every push). Rules that check themselves don't drift; checkmarks that nobody checks do. The repo already proved both halves: the validator script exists because someone built a check, and the seven gaps exist because nobody built the other seven.
+
+**Your turn:** open your own project's plan or roadmap. Pick three items marked done. Grep for each. If all three are real, your process works — write down *why* it works before it stops. If any isn't, you found your next commit: the plan itself, corrected, with hashes.
+
+## The principle
+
+Done means merged and verified, and the proof is a hash, not a glyph. Plans are suspects with good intentions: read them for judgment, grep them for existence, and commit them before either. What is up to us isn't whether every hardening item is finished — it's whether the record of what's finished is true.
+
+## Evidence
+
+- `config.yml` — live-looking `nvapi-` key in plaintext (verified 2026-09-05; NOT quoted, per policy)
+- `backend/app` — no `jti`/blacklist/reuse-detection (tree + HEAD + `main`, verified)
+- `backend/app/main.py:132` — `allow_credentials=True` (verified)
+- `backend/app/pipeline/orchestrator.py:328` — validation zeros (verified)
+- `backend/app/pipeline/publish/vectorizer.py:36` — always-false filter (verified)
+- `backend/app/pipeline/publish/indexer.py:23,35` — `SET fts` (verified)
+- `backend/app/pipeline/generate/concept_generator.py:54,58` — duplicate field (verified)
+- `git log --oneline --all -- docs/FIX_PLAN.md` — empty: plan untracked (verified)
+- Landed (verified): `scripts/validate_specs.py`, `backend/app/core/ids.py`, no `backend/backend/`, `75fd6e8f99dd` migration, GDPR bulk deletes, no `secret_preview`, authed question list, 10 contract tests
+- Missing: remote/stash excavation; motives (unknowable, not asserted)
+
+Related: the <a href={siteUrl('/projects/data-eng-mastery/')}>data-eng-mastery project page</a>, <a href={siteUrl('/tutorials/data-eng-mastery/04-content-pipeline/')}>Part 4: the content pipeline</a>.

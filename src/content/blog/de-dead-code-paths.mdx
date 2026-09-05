@@ -1,0 +1,88 @@
+---
+title: "The First Customer Crashed Checkout: Five Paths Nobody Ever Ran"
+description: "A NameError on first subscription, a GDPR delete that selected instead of deleting, a fake export URL, a missing exam column — data-eng-mastery's unexecuted paths, fixed and one still open."
+pubDate: 2026-09-05
+---
+
+import Callout from '../../components/case-study/Callout.astro';
+import { siteUrl } from '../../lib/site';
+
+> "The impediment to action advances action. What stands in the way becomes the way." — Marcus Aurelius, *Meditations*
+
+Every bug in this article lived in a path nobody had ever executed: the first-ever subscription, the account deletion, the failed export, the exam resubmission. The happy path — register, study, practice — had been walked a hundred times. These five had been walked zero times, by anyone, ever. The code wasn't wrong in a subtle way. It had never met reality at all.
+
+Priya's friend subscribes — the first paying user, the moment every side project dreams about. The checkout explodes: `NameError: name 'customer_id' is not defined`. Not a race, not a scale failure, not a Stripe outage. The variable was assigned in one branch and used after both. The first customer found it in seconds. That ratio — months to write, seconds to break — is the signature of unexecuted code, and this article is its catalogue.
+
+**You are here:** part 4 of the data-eng-mastery investigations (the <a href={siteUrl('/tutorials/data-eng-mastery/03-api-and-data/')}>tutorial series</a> covers how it works; the <a href={siteUrl('/projects/data-eng-mastery/')}>project hub</a> tells the whole story). More in this series: <a href={siteUrl('/blog/de-nobody-could-log-in/')}>Nobody Could Log In</a> · <a href={siteUrl('/blog/de-contract-drift/')}>Two Codebases, One Argument</a> · <a href={siteUrl('/blog/de-silent-writes/')}>Two Writes That Silently Discarded You</a> · <a href={siteUrl('/blog/de-green-tests-red-services/')}>Green Tests, Red Services</a> · <a href={siteUrl('/blog/de-plan-said-done/')}>The Plan Said Done</a> · <a href={siteUrl('/blog/de-browser-xp/')}>I Let the Browser Award XP</a>.
+
+## The situation
+
+Five handlers, five paths, one shared biography: written, reviewed by eye, merged, and never executed. The billing checkout (BUG-014) crashed for every first-time subscriber. The GDPR deletion (P0.3a–b) ran SELECTs where it meant DELETEs — reading rows it was asked to remove — with a missing enum value and an unimported logger waiting in the same function. The Obsidian export (P0.3c) returned a download URL for a ZIP it never built. The exam submit (P0.3d–f) referenced a column that didn't exist, stored a float in an integer, and filtered after limiting. The pipeline's concept generator still declares the same field twice today (open — more below).
+
+## What I thought
+
+The assumption behind all five: *code that reads correctly is code that works.* Each of these passes a careful read — the billing handler clearly intends to use the customer id; the delete function clearly intends to delete; the export clearly intends to produce a file. Reading tracks intention. Execution tracks reality. The gap between them is exactly the set of things a reader's brain auto-completes: the missing assignment, the SELECT that should be a DELETE, the URL without a file behind it. First principle: **review reads intentions; only execution reads behavior.** A path with zero executions has zero known behaviors, regardless of how often it was read.
+
+## What broke
+
+- **Billing, BUG-014.** The create-branch built the Stripe customer, added the row, committed — and never assigned the local `customer_id` (assigned only in the else branch). First checkout: `NameError` → 500. Every subsequent checkout for that user worked, which is the cruelest version: the bug bites exactly one user per account — each newcomer, once — and never the developer retesting with their own account.
+- **GDPR delete.** The "deletion" cascade executed SELECTs without deleting, leaving orphaned rows; the audit enum lacked the deletion action; the logger wasn't imported. A privacy endpoint that preserved everything it promised to remove, while crashing on the log line that would have recorded it.
+- **Obsidian export.** The job returned a download URL for a ZIP that was never produced — a success response describing a file that doesn't exist (the export-flavored cousin of part 3's silent writes).
+- **Exam submit.** Three stacked defects: a submit check against a non-existent `submitted_at` column, a 0–1 float stored into a 0–1000 integer, and a certification filter applied after LIMIT (wrong rows, then truncated).
+- **Concept generator (OPEN).** `status: str = "draft"` is still declared twice (`concept_generator.py:54,58`, verified today). The plan claims the duplicate was removed. It wasn't. Whether it crashes depends on the Pydantic version in the room — I won't assert a crash I didn't reproduce — but a fix claimed and not present is itself a finding, and it belongs to part 6's story too.
+
+## The investigation
+
+No deep debugging here — that *is* the finding. Each defect is visible the first time the path runs: subscribe once with a fresh user, delete one test account, fail one export, submit one exam twice. The investigation method that finds all five at once is a checklist of *rare paths*, executed deliberately: first-ever, deletion, failure, retry, empty, duplicate. Happy-path testing exercises the code you already believe in; rare-path testing exercises the code you merely wrote. The audit found these by reading; I verified the fixes by reading current source. The person who should have found them originally is a script — which is why every fix below is paired with the test that now walks the path.
+
+## The decision
+
+No grand architecture fork here — five small, correct choices, each worth one line:
+
+| Path | Chosen fix (verified in source) |
+|---|---|
+| Billing | Hoist `customer_id` assignment out of both branches (cleaner than the suggested in-branch assign) |
+| GDPR delete | Anonymize the user row + real bulk DELETEs per related model + audit action |
+| Obsidian export | Mark the job `failed` with an honest reason instead of a fake URL |
+| Exam submit | Real `submitted_at` column via migration (evolved beyond the interim dodge) |
+| Concept generator | Unfixed — claimed, still present |
+
+The exam case deserves one extra sentence: the interim idea was to dodge the missing column (`bool(exam.answers)` instead). What actually landed is better — migration `75fd6e8f99dd` adds the real column, the model declares it, the handler reads and writes it. When the schema is wrong, fix the schema with a migration, not the code with a dodge. Dodges accrue; migrations compose.
+
+<Callout type="lesson">
+  The billing fix is my favorite diff in the series: the assignment moved *below* the if/else instead of being duplicated into a branch. When a value is needed after a branch, compute it after the branch. One assignment, zero ways for the branches to disagree.
+</Callout>
+
+## The fix
+
+Verified in current source: the hoisted `customer_id` (`billing.py`, after the create-or-fetch block); the GDPR handler that anonymizes (`deleted_...@deleted.local`, password hash destroyed, deactivated) and bulk-deletes flashcards, decks, progress, and analytics rows; the export worker that marks jobs failed with the error recorded; the exam model carrying `submitted_at` with its migration. The fake URL is gone; the SELECTs-that-delete are gone; the first customer checks out.
+
+## How I verified it
+
+Source-verified 2026-09-05: billing hoist, GDPR anonymize + bulk DELETEs, export failed-marking (`obsidian.py:368-369`), exam column in model (`user.py:138`) + migration file, and the concept-generator duplicate still present (`:54,58`). The billing contract test exists (`test_billing_contract.py`). What I did not do: run a fresh-user checkout, delete a live test account, or fail an export on purpose. These are executions, and executions are the entire moral of this article — so the gap is stated at full volume: my verification is reading, and reading is what missed these in the first place. The contract tests are the ones doing the actual verifying now.
+
+## What I missed
+
+As an investigator, almost nothing — the paths announce themselves. As an engineer, the original sin: **shipping paths with an execution count of zero.** The general rule I took: every handler gets executed before merge — by a test, by a script, by a curl, by anything — and "rare" paths (first, delete, fail, retry) get executed *first*, because common paths get executed by accident during development while rare ones wait for the first customer to volunteer.
+
+## What I would do differently
+
+A pre-merge ritual, five minutes: list the handler's paths, mark which ones the test suite executes, and refuse to merge any handler with an unexecuted path unless the gap is named in the PR. Plus a standing euphemism ban: functions named `process_*` that return URLs must produce the file first; "delete" functions that SELECT are renamed or rewritten on sight. The current fixes stay; the ritual would have made four of the five unnecessary.
+
+**Your turn:** grep your own codebase for download URLs, delete cascades, and first-run branches. Pick one. Execute it with fresh state — new user, empty table, failing dependency. Did reality match the reading?
+
+## The principle
+
+Unexecuted code has no behaviors, only intentions. The fix for a dead path is never just the code change — it's the execution that now walks it on every change. Tests aren't overhead on rare paths; rare paths are where tests earn their entire keep.
+
+## Evidence
+
+- `backend/app/api/v1/billing.py` — hoisted `customer_id` (verified 2026-09-05)
+- `backend/app/api/v1/auth.py:437+` — anonymize + bulk DELETEs; `:492` audit action (verified)
+- `backend/app/api/v1/obsidian.py:368-369` — failed marking (verified)
+- `backend/app/models/user.py:138` + `alembic/versions/75fd6e8f99dd_*` — real column + migration (verified)
+- `backend/app/pipeline/generate/concept_generator.py:54,58` — duplicate STILL present (verified = OPEN)
+- `backend/tests/test_billing_contract.py` — path pin (verified present)
+- Missing: live executions of all five paths (stated as the gap, deliberately)
+
+Related: the <a href={siteUrl('/projects/data-eng-mastery/')}>data-eng-mastery project page</a>, <a href={siteUrl('/tutorials/data-eng-mastery/04-content-pipeline/')}>Part 4: the content pipeline</a>.

@@ -1,0 +1,89 @@
+---
+title: "Nobody Could Log In: Four Bugs Wearing a Trenchcoat"
+description: "Tokens that were always null, a guard that bounced everyone, a login body that serialized to '{}', and a refresh flow that never fired — the data-eng-mastery auth saga."
+pubDate: 2026-09-05
+---
+
+import Callout from '../../components/case-study/Callout.astro';
+import CodeExample from '../../components/case-study/CodeExample.astro';
+import { siteUrl } from '../../lib/site';
+
+> "Don't demand that things happen as you wish, but wish that they happen as they do happen." — Epictetus, *Enchiridion*
+
+The frontend demanded a backend that accepted form bodies as JSON, returned tokens as cookies *and* JSON, and lived on the same origin. The backend did none of those things. For the entire protected app — dashboard, practice, exams, everything behind login — there was exactly one user experience: the login page, forever.
+
+Priya registers. The UI says welcome. She clicks Dashboard. She is back at login. She logs in — carefully, correctly — and lands at login. She tries a wrong password, expecting an error that would at least prove the wire is alive. Nothing distinguishes the attempts. From her side, the app is a room with the door painted on.
+
+**You are here:** part 1 of the data-eng-mastery investigations — why the system became this way (the <a href={siteUrl('/tutorials/data-eng-mastery/03-api-and-data/')}>tutorial series</a> covers how it works; the <a href={siteUrl('/projects/data-eng-mastery/')}>project hub</a> tells the whole story). More in this series: <a href={siteUrl('/blog/de-contract-drift/')}>Two Codebases, One Argument</a> · <a href={siteUrl('/blog/de-silent-writes/')}>Two Writes That Silently Discarded You</a> · <a href={siteUrl('/blog/de-dead-code-paths/')}>The First Customer Crashed Checkout</a> · <a href={siteUrl('/blog/de-green-tests-red-services/')}>Green Tests, Red Services</a> · <a href={siteUrl('/blog/de-plan-said-done/')}>The Plan Said Done</a> · <a href={siteUrl('/blog/de-browser-xp/')}>I Let the Browser Award XP</a>.
+
+## The situation
+
+Authentication is the gate every other feature walks through: register, login, session, refresh, logout. The repo's audit (BUG-001 through BUG-004, plus BUG-009) found it broken at four independent layers — token storage, route guarding, request serialization, and session refresh — with a fifth wound (response-shape mismatch) on top. Any *one* of them was sufficient to keep Priya out. All five were present simultaneously, which meant fixing any single layer changed nothing observable. That property — each fix invisible until all fixes land — is what makes stacked auth failures uniquely demoralizing to debug: every correct patch looks like it did nothing.
+
+## What I thought
+
+Reconstructed from the code: the frontend had been refactored toward an httpOnly-cookie session model — the *secure* model, cookies the browser holds and JavaScript can't read — while the rest of the system stayed on the Bearer-token model. Half the code was written for the future, half for the present, and neither half worked. The mental model underneath: *migrating the storage mechanism is the same as migrating the architecture.* It isn't. Cookies set by `localhost:8000` are never sent to `localhost:3000` without credentials mode and a same-origin story, so the "secure" half was a locked safe with the key thrown into a different building — and the Bearer half had its token store stubbed to `null`.
+
+## What broke
+
+Layer by layer, each independently fatal:
+
+1. **Tokens were always null.** `lib/auth/tokens.ts` returned `null` for access and refresh; `set`, `clear`, and `hasAccess` were no-ops. No header was ever attached (`client.ts`), no cookie ever sent cross-origin. Every protected call was anonymous.
+2. **The guard bounced everyone.** The route guard read `tokens.hasAccess()` — permanently false — instead of the backend-backed `useAuth()` query sitting unused one file away. Logged-in users were redirected to `/login`; the login page, rendered for an authenticated user, had no reason to send them back. A loop with painted exits.
+3. **The login body was `"{}"`.** The login helper built a `URLSearchParams` form, and the shared fetch wrapper unconditionally ran `JSON.stringify` over every body. `JSON.stringify(new URLSearchParams(...))` is `"{}"` — the params silently vanish — so the backend's `Form(...)` fields were missing and every login answered 422, credentials irrelevant.
+4. **Refresh could never fire.** The client posted `{refresh_token}` and read tokens from the JSON body; the backend set cookies and read cookie-first. With the stored refresh permanently null, the flow never even started — and had it started, the two sides were speaking past each other.
+5. **Register answered in a shape nobody read.** The backend returned a `{user, access_token, ...}` wrapper; the frontend typed and consumed it as a flat user profile. Registration "succeeded" and left Priya logged out, reading `undefined` fields from a type-correct lie.
+
+<Callout type="lesson">
+  Five layers, one symptom: "login doesn't work." When a symptom survives your first correct fix, suspect a stack, not a bug — and verify each layer independently (token stored? header sent? body intact? response read?) instead of re-fixing the layer you understand best.
+</Callout>
+
+## The investigation
+
+The audit that found all five is itself the method worth copying: it walked the *user flow* (register → login → session → refresh → gated page) and checked each handoff's contract — what the sender sent vs. what the receiver parsed — instead of reading either side alone. Every bug above is invisible from one side: the fetch wrapper looks fine until you hand it a `URLSearchParams`; the guard looks fine until you learn `hasAccess()` is stubbed; the backend looks fine until you notice nobody can call it.
+
+What was ruled out: the password hashing, the JWT signing, the database users table — the *cryptography and storage* were never suspects, because no request ever got far enough to exercise them. When nothing reaches the lock, don't rekey the lock; check the road.
+
+## The decision
+
+| | Option A: cookies + same-origin proxy | Option B: Bearer tokens in JS storage |
+|---|---|---|
+| Security | httpOnly cookies, no JS access (better XSS posture) | Tokens readable by JS (XSS risk, stated openly) |
+| Effort | Proxy rewrites, credentials mode, cookie plumbing across origins | Store what login returns, attach the header |
+| Chosen | Deferred ("hardened alternative for a later phase") | **Chosen** |
+
+The tree shows which won: today's `tokens.ts` is a real localStorage store whose own header comment names the XSS trade-off and cites the audit — honesty preserved at the scene. The login travels as JSON (`{email, password}` in `endpoints.ts:42`, received as a `UserLogin` model at `auth.py:226`), the guard is driven by the `useAuth()` backend query with public paths and `?from=` return redirects, registration is typed as `LoginResponse` with a real session helper, and password changes got their own endpoint (`POST /auth/change-password`, verified present with its request schema). One coherent model, written down, instead of four overlapping mechanisms — the dead NextAuth config with its hardcoded admin credential still sits in the tree, and deleting it is open work, but it is *dead*, which is the important part.
+
+## The fix
+
+Concretely, per layer: a token store that actually stores (read/write localStorage, change events); a guard that asks the server who you are instead of asking a stub; a login that sends JSON to a backend that accepts JSON; a typed register/login response with session establishment; a dedicated change-password route wired to the settings page. No single change is clever. The cleverness, if any, is that all five had to land together — which is a release-planning fact, not a code fact, and exactly the kind of thing that deserves a checklist rather than a hero.
+
+## How I verified it
+
+Source-verified 2026-09-05: the localStorage store (with its trade-off comment), the `useAuth()`-driven guard, the JSON login on both sides, the change-password route and schema, the `PATCH` profile update. Ten contract test files now guard the seams (`test_auth_contract.py` among them — the guardrail this saga paid for). What I did *not* do: drive a live register → login → dashboard run myself, so the end-to-end chain is attested by the audit record and the contract tests, not by my own browser. And the dead NextAuth file is still in the tree — the one loose end, stated plainly.
+
+## What I missed
+
+I would have fixed layer 1 first and despaired when nothing changed. The general error: **debugging the symptom ("can't log in") instead of the chain (five handoffs, five contracts).** For any flow that crosses a boundary more than once, the first tool is a table of handoffs with "sender sends / receiver expects" columns — filled in before touching code. The audit's integration matrix is that table, and it found in one pass what sequential debugging would have found in five demoralizing weeks.
+
+## What I would do differently
+
+One auth model, chosen on day one, written in one paragraph in the repo root: *tokens live here, travel this way, refresh like this.* Every subsequent change gets reviewed against the paragraph. And no "refactor toward" a new model without migrating all four mechanisms in the same change — a migration that is half-done is not half-working, it is fully broken with extra steps.
+
+**Your turn:** open your own app's login in devtools. Read the request body off the wire — not from your code, from the network tab. Is it what your backend parses? Now find your route guard: does it ask the server, or a local stub?
+
+## The principle
+
+Two half-models of auth equal zero models of auth. Coherence is the feature — pick the model your whole stack can actually execute today, write down the trade-off you accepted (this repo did, in a code comment), and let the better model wait its turn as a tracked phase, not a half-merged ghost.
+
+## Evidence
+
+- `frontend/lib/auth/tokens.ts` — real store + XSS trade-off comment (verified 2026-09-05)
+- `frontend/lib/providers/auth-guard.tsx` — `useAuth()`-driven guard (verified)
+- `frontend/lib/api/endpoints.ts:42` — JSON login; `:44` — PATCH profile; change-password wiring (verified)
+- `backend/app/api/v1/auth.py:226` — `UserLogin` JSON login; `:376` — change-password route (verified)
+- `backend/tests/test_auth_contract.py` (+ 9 siblings) — seam guardrails (verified present)
+- `frontend/lib/auth/index.ts` — dead NextAuth config still in tree (verified present = OPEN)
+- Missing: my own live end-to-end login run; refresh-flow source re-check (per audit record)
+
+Related: the <a href={siteUrl('/projects/data-eng-mastery/')}>data-eng-mastery project page</a>, <a href={siteUrl('/tutorials/data-eng-mastery/03-api-and-data/')}>Part 3: API and data model</a>.

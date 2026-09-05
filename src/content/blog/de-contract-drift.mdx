@@ -1,0 +1,85 @@
+---
+title: "Two Codebases, One Argument: The Dashboard 500 and the Drift Behind It"
+description: "A dashboard that 500'd on every load, practice feedback showing blanks, a leaderboard that couldn't count — eight contract-drift sites in data-eng-mastery, one missing guardrail."
+pubDate: 2026-09-05
+---
+
+import Callout from '../../components/case-study/Callout.astro';
+import { siteUrl } from '../../lib/site';
+
+> "First say to yourself what you would be; and then do what you have to do." — Epictetus, *Discourses*
+
+The frontend had said what it would be: `ProgressDashboard` with `total_concepts`, `section_progress`, `due_reviews_count`. The backend had said what it would be: `ProgressDashboard` with `overall_mastery`, `streak_days`, `sections`. Same name. Different shapes. Every dashboard load constructed a model with the other's field names, Pydantic refused, and Priya got a 500 where her morning used to be.
+
+She logs in — the auth saga behind her — and opens her dashboard. Server error. She goes to practice instead, answers a question, and the feedback panel shows mastery: blank. She checks the leaderboard: 20 users. There are 20 users *on the page*. The contract between the two halves of her app wasn't broken in one place. It had drifted in eight.
+
+**You are here:** part 2 of the data-eng-mastery investigations (the <a href={siteUrl('/tutorials/data-eng-mastery/03-api-and-data/')}>tutorial series</a> covers how it works; the <a href={siteUrl('/projects/data-eng-mastery/')}>project hub</a> tells the whole story). More in this series: <a href={siteUrl('/blog/de-nobody-could-log-in/')}>Nobody Could Log In</a> · <a href={siteUrl('/blog/de-silent-writes/')}>Two Writes That Silently Discarded You</a> · <a href={siteUrl('/blog/de-dead-code-paths/')}>The First Customer Crashed Checkout</a> · <a href={siteUrl('/blog/de-green-tests-red-services/')}>Green Tests, Red Services</a> · <a href={siteUrl('/blog/de-plan-said-done/')}>The Plan Said Done</a> · <a href={siteUrl('/blog/de-browser-xp/')}>I Let the Browser Award XP</a>.
+
+## The situation
+
+The frontend types its world by hand (`frontend/lib/types.ts`), and the backend declares its world in Pydantic schemas (`backend/app/schemas/*`). Nothing connects them — no codegen, no shared package, no test asserting they agree. The audit's architecture note (ARCH-001) names the disease: a hand-maintained contract with two maintainers who never meet. The dashboard 500 (BUG-010) was the loudest symptom, but the audit catalogued the full family: profile update verb (PUT vs PATCH), flag ids (`flag_id` vs `id`), study-plan durations (`daily_minutes` vs `daily_study_minutes`), learning-path steps, leaderboard totals, concept ids (string vs UUID), profile gamification fields, and practice mastery feedback. Eight sites, one cause.
+
+## What I thought
+
+Nobody decided the shapes should differ. That is the whole story of drift: the router was written against the frontend's TypeScript shapes (or a prior schema generation), the backend schemas were later renamed, and nothing forced the two to agree except runtime — which, for gated endpoints, meant "after auth works," i.e., late. The mental model underneath: *types on both sides means agreement.* It doesn't. Two type systems with no bridge are two opinions, and opinions diverge at exactly the rate of development velocity.
+
+## What broke
+
+The divisional tour, worst first:
+
+- **Dashboard 500 (BUG-010).** The router built `SectionProgress` and `ProgressDashboard` with the frontend's field names; the schemas required renamed fields (`concepts_total`, `quiz_accuracy`, `overall_mastery`, `sections`). Required fields never provided → `ValidationError` → 500 on *every* `/progress/me`. Priya's streaks, due reviews, and metrics never rendered — not wrong, absent.
+- **Practice feedback blanks (BUG-007).** The answer endpoint returned `{correct, explanation, mastery_change, ...}` while the UI required `mastery_score` + `mastery_level`. And the `mastery_change` expression itself was, in the audit's memorable phrase, "self-cancelling garbage" — computed values that existed in the handler but were never serialized. Priya answered questions into a void that said nothing back.
+- **The small cuts (BUG-005/011/012/013/015/016/018).** Profile saves answered 405 (PUT vs PATCH). Flagged questions couldn't be unflagged (`flag.id` undefined). Study plans showed wrong durations. The learning path rendered blank titles with links to `/concept/undefined`. The leaderboard's "total users" equaled the page size. Concept graph endpoints compared a UUID column to a raw string (a 500 under asyncpg). The profile type dropped the XP fields the header displayed.
+
+<Callout type="lesson">
+  Count the failure modes: one crash, two blanks, five wrong-or-missing values. Only the crash got reported. Drift mostly presents as *slightly wrong UI* that users blame on themselves ("maybe my plan has no name yet"). When auditing, read the compiler-silent seams first — the 500s will find you on their own.
+</Callout>
+
+## The investigation
+
+The audit's integration matrix is the whole method: one row per endpoint, columns for frontend consumer, request shape, response shape, auth, status. Fill it mechanically and the drift lights up like a runway — no ingenuity required, which is precisely why its absence was expensive. Each row took minutes; the eight rows together took less time than any single one of these bugs cost in user confusion. The investigation also correctly identified the non-fix: editing eight call sites without installing a guardrail just resets the drift clock to zero.
+
+## The decision
+
+| | Align schemas to the router | Align router to the schemas | Generate types from OpenAPI |
+|---|---|---|---|
+| Effort | Rename backend fields; migrate | Rewrite handlers; touch frontend | New pipeline step |
+| Durability | Drifts again without a guard | Drifts again without a guard | Drift becomes a build break |
+| Chosen | — | **Chosen (reconcile both sides)** | Deferred (contract tests instead) |
+
+The pragmatic middle won: reconcile each seam to one documented shape *and* install ten contract test files (`test_progress_dashboard_contract.py`, `test_practice_answer_contract.py`, `test_leaderboard_contract.py`, `test_concept_uuid_contract.py`, `test_learning_path_contract.py`, `test_study_plan_contract.py`, `test_study_plans_contract.py`, `test_question_flag_contract.py`, `test_billing_contract.py`, `test_auth_contract.py` — all verified present). Codegen from OpenAPI remains the better end-state, explicitly deferred rather than silently forgotten. A deferred decision with its reason written down is engineering; a deferred decision nobody records is just drift with extra steps.
+
+## The fix
+
+Per seam, the shape the UI needs became the shape the API returns: the leaderboard counts users with `SELECT COUNT(*)` instead of measuring the page (verified at `leaderboard.py:110`); concept graph endpoints convert ids to UUID before querying (verified at three sites in `concepts.py`); profile updates travel over PATCH (verified); flag responses carry `id` (verified absent: no `flag_id` remains in `questions.py`); study-plan schemas speak `daily_study_minutes` (verified ×3); the practice answer computes mastery through the canonical `calculate_mastery` and stores score ×1000 with its level (verified at `questions.py:324-363`). The `/progress/me` dashboard returns the frontend-compatible shape per the audit's fix record, pinned by its contract test.
+
+## How I verified it
+
+Source-verified 2026-09-05 for the leaderboard count, UUID conversions, PATCH, flag id absence, study-plan minutes, and the practice mastery path; the ten contract test files verified present by name. The dashboard reconciliation itself and the path-step fields I attest from the audit's fix record plus their contract tests — I read the pins, not every line behind them, and this sentence marks that boundary. What I did not do: execute the contract suite or load the dashboard against a live backend. The guardrail exists; I confirmed it is installed, not that it is green today.
+
+## What I missed
+
+The interesting miss isn't any single field — it's that *eight* mismatches accumulated before *one* mechanism (the matrix, the tests) was built to catch the first. The general error: **treating each mismatch as a typo instead of the eighth instance of a missing process.** Types on both sides felt like safety; safety that isn't enforced at the seam is documentation, and documentation nobody runs is a rumor. Now my rule: the second time two systems disagree about a shape, I stop fixing shapes and build the bridge (codegen or contract tests) — the third disagreement is then impossible, not merely fixed.
+
+## What I would do differently
+
+Generate `types.ts` from the FastAPI OpenAPI schema on day one (`openapi-typescript` in the frontend build) so drift becomes a compile error instead of a user report. Failing that, the contract tests from the start — they are cheap (assert field parity per endpoint) and they convert every future rename into a red test at authoring time rather than a blank widget at runtime. The current state (reconciled + pinned) is correct and stays; the ordering is what I'd change.
+
+**Your turn:** pick one endpoint in your own stack. Write down the response fields from the backend schema, then from the frontend type, without looking at the other side first. Diff them. If you found even one drift, you need the bridge.
+
+## The principle
+
+A contract nobody enforces is a rumor two codebases tell about each other. The fix that mattered wasn't any renamed field — it was the ten test files that make the ninth disagreement impossible. Reconcile once, then install the guardian; in that order, and never the first half alone.
+
+## Evidence
+
+- `backend/app/api/v1/leaderboard.py:110` — `COUNT(*)` total (verified 2026-09-05)
+- `backend/app/api/v1/concepts.py:108,184,243` — UUID conversion ×3 (verified)
+- `frontend/lib/api/endpoints.ts:44` — PATCH profile (verified)
+- `backend/app/api/v1/questions.py` — no `flag_id` remains; `:324-363` canonical mastery (verified)
+- `backend/app/schemas/user.py:575,581,593` — `daily_study_minutes` (verified)
+- `backend/tests/test_*_contract.py` — 10 contract files (verified present)
+- Per audit record: BUG-010 dashboard reconciliation, BUG-013 path fields, BUG-018 profile fields
+- Missing: contract-suite execution; live dashboard load
+
+Related: the <a href={siteUrl('/projects/data-eng-mastery/')}>data-eng-mastery project page</a>, <a href={siteUrl('/tutorials/data-eng-mastery/03-api-and-data/')}>Part 3: API and data model</a>.

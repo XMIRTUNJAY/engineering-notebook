@@ -1,0 +1,85 @@
+---
+title: "Two Writes That Silently Discarded You"
+description: "A password change that toasted success and changed nothing, and study sessions that saved zeros — data-eng-mastery's silent-write failures (BUG-006, BUG-008)."
+pubDate: 2026-09-05
+---
+
+import Callout from '../../components/case-study/Callout.astro';
+import { siteUrl } from '../../lib/site';
+
+> "We suffer more often in imagination than in reality." — Seneca, *Moral Letters*
+
+Here the polarity reversed: Priya suffered nothing in imagination — the toast said "Password updated," the session ended cleanly — and lost in reality. Her old password still worked. Her study stats were zeros. Both writes succeeded. That was the problem: success was the response, and it described nothing that happened.
+
+A crash insults you to your face. These two bugs complimented Priya while picking her pocket — and of the failure modes in this series, silent writes are the ones I now fear most, because every downstream habit (trusting confirmations, skipping verification) is trained by the successes, real and fake alike.
+
+**You are here:** part 3 of the data-eng-mastery investigations (the <a href={siteUrl('/tutorials/data-eng-mastery/03-api-and-data/')}>tutorial series</a> covers how it works; the <a href={siteUrl('/projects/data-eng-mastery/')}>project hub</a> tells the whole story). More in this series: <a href={siteUrl('/blog/de-nobody-could-log-in/')}>Nobody Could Log In</a> · <a href={siteUrl('/blog/de-contract-drift/')}>Two Codebases, One Argument</a> · <a href={siteUrl('/blog/de-dead-code-paths/')}>The First Customer Crashed Checkout</a> · <a href={siteUrl('/blog/de-green-tests-red-services/')}>Green Tests, Red Services</a> · <a href={siteUrl('/blog/de-plan-said-done/')}>The Plan Said Done</a> · <a href={siteUrl('/blog/de-browser-xp/')}>I Let the Browser Award XP</a>.
+
+## The situation
+
+Two unrelated write paths shared one defect shape: the server accepted input, did nothing (or nearly nothing) with it, and reported success. The settings page sent the new password tucked inside a profile update (`updateMe({settings: {password}})`); the profile schema had no `settings` and no `password`, so the unknown field was dropped, the update "succeeded," and the UI celebrated. Separately, ending a study session sent real stats (`questions_attempted`, and friends) as a JSON body to an endpoint whose parameters were bare query arguments — the body was ignored, the stats defaulted to zero, the session closed. Priya studied; the record says she sat still.
+
+## What I thought
+
+Both bugs were built from the same assumption: *the framework will complain if I send the wrong thing.* Pydantic does complain about the wrong *types* — but unknown fields are dropped by default, and a JSON body sent to query parameters isn't wrong as far as the transport is concerned, it's simply unread. The mental model underneath confuses validation (rejects bad shapes) with attention (reads what you meant). Frameworks validate; only code pays attention. Both handlers were written as if the framework were the reader.
+
+## What broke
+
+- **Password change, BUG-006.** No change-password route existed at all. The frontend improvised by smuggling the password through the profile update; the backend's `UserProfileUpdate` knew no such field and discarded it; the 200 response and the success toast completed the fiction. Impact, stated plainly: users believed their credentials were rotated while the old password kept working — a security-relevant lie wrapped in a success animation.
+- **Session end, BUG-008.** The `StudySessionUpdate` schema *existed* — correct fields, correct types, sitting in `schemas/user.py` — and the endpoint didn't use it. Bare `questions_attempted: int = 0` style parameters meant FastAPI read the query string; the JSON body went nowhere. Every ended session persisted zeros. The cable was in the room, unplugged, while everyone assumed the lamp was broken.
+
+<Callout type="lesson">
+  Both bugs returned 2xx. If your test asserts the status code and not the stored row, it passes precisely when the data is lost. For every write path, the assertion that matters is on the database afterwards, not the response in flight.
+</Callout>
+
+## The investigation
+
+Short, because the audit's method (compare sender vs. receiver per handoff) is devastating against this bug class: settings page sends `settings.password` → schema has no such field → dropped. Frontend sends JSON body → handler declares query params → unread. In both cases the evidence was a *negative* — a field that exists on one side and not the other — which is why reading either side alone never finds it. You have to hold both sides up to the light together. What was ruled out: the database (it faithfully stored what it was told — zeros and unchanged hashes), the toast system (it faithfully reported the 200), the network (it delivered everything). Every component worked. The composition lied.
+
+## The decision
+
+| | Password: reuse profile update | Password: dedicated route |
+|---|---|---|
+| Semantics | "Update" silently absorbs secrets | Old-password verification, rehash, explicit contract |
+| Failure mode | Drops the field, reports success | Wrong old password → real error |
+| Decision | Rejected | **Chosen: `POST /auth/change-password`** |
+
+| | Session: read query params | Session: accept the body model |
+|---|---|---|
+| Posture | Client must encode stats in URL | The `StudySessionUpdate` schema already exists |
+| Decision | Rejected | **Chosen: `body: StudySessionUpdate`** |
+
+Neither decision was close once the silence was understood — but notice the session fix is *plugging in an existing cable*, the cheapest kind of fix there is, available from the day the schema was written. The schema author and the endpoint author were presumably the same person at different times. Code written on Tuesday can be a stranger to code written on Monday; the review that catches it is the one holding both files.
+
+## The fix
+
+Today's source, verified: `POST /auth/change-password` exists (`auth.py:376`) with a `ChangePasswordRequest` schema (old password verified, new password rehashed) and the settings page wired to it. The session endpoint accepts `body: StudySessionUpdate` (`study_plans.py:298`) and persists what Priya actually did. Both are pinned by contract tests (`test_study_plans_contract.py` among the ten). The toast now describes reality — which is all a toast ever promised, and all it ever must be audited against.
+
+## How I verified it
+
+Source-verified 2026-09-05: the change-password route, its schema import, the frontend wiring, and the session body parameter. Contract tests verified present. What I did *not* do: perform a live password rotation (old-rejected, new-accepted) or end a live session with non-zero stats against the database. Those two runs are the proof this story still owes; the pins are installed, the executions are not mine. Stated plainly, as always.
+
+## What I missed
+
+The general form, and it's worth naming precisely: **I tested the response, not the row.** A 200 with a toast feels like an end-to-end pass — you watched the whole flow! — but the observed system ended at the screen. The database was never in the test. For reads, response-assertions suffice; for writes, the only assertion that counts is a re-read of the stored state. Every write-path test I write now ends with a query, not a status code.
+
+## What I would do differently
+
+Two rules, both cheap. First: schemas reject unknown fields loudly where the field would be security-relevant (Pydantic's `extra="forbid"` on update models turns the password-smuggling of BUG-006 into a 422 on day one). Second: no handler declares bare scalar parameters for a JSON client — the body model is mandatory, and if the model already exists unused (as it did here), that is a review-blocking smell, not a curiosity. The current fixes are correct and stay; these rules would have made them unnecessary.
+
+**Your turn:** find one write path in your own app — settings save, profile edit, anything with a success toast. Skip the UI: query the row before and after. Did the toast tell the truth?
+
+## The principle
+
+Success responses must describe reality. A 200 that did nothing is not a lesser bug than a 500 — it is a worse one, because the 500 recruits you to fix it and the 200 recruits you to trust it. Test the row, not the response.
+
+## Evidence
+
+- `backend/app/api/v1/auth.py:376` — change-password route (verified 2026-09-05)
+- `frontend/lib/api/endpoints.ts:44-50` — PATCH profile + change-password wiring (verified)
+- `backend/app/api/v1/study_plans.py:295-298` — session body parameter (verified)
+- `backend/tests/test_study_plans_contract.py` — seam pin (verified present)
+- Per audit record: original smuggling shape (BUG-006), bare-params shape (BUG-008)
+- Missing: live rotation run; live non-zero session run
+
+Related: the <a href={siteUrl('/projects/data-eng-mastery/')}>data-eng-mastery project page</a>, <a href={siteUrl('/tutorials/data-eng-mastery/03-api-and-data/')}>Part 3: API and data model</a>.

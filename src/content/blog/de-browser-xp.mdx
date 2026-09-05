@@ -16,6 +16,8 @@ Priya passes a mock exam on a Tuesday evening — 41 out of 50, a genuine 82%, h
 
 **You are here:** an engineering investigation from the data-eng-mastery project — not a tutorial (the <a href={siteUrl('/tutorials/data-eng-mastery/03-api-and-data/')}>tutorial series</a> explains how the system works; this explains why one part became the way it is). The project hub tells <a href={siteUrl('/projects/data-eng-mastery/')}>the full story</a>. This article answers one question: who decides what Priya earned — her browser, or the server?
 
+More in this series: <a href={siteUrl('/blog/de-nobody-could-log-in/')}>Nobody Could Log In</a> · <a href={siteUrl('/blog/de-contract-drift/')}>Two Codebases, One Argument</a> · <a href={siteUrl('/blog/de-silent-writes/')}>Two Writes That Silently Discarded You</a> · <a href={siteUrl('/blog/de-dead-code-paths/')}>The First Customer Crashed Checkout</a> · <a href={siteUrl('/blog/de-green-tests-red-services/')}>Green Tests, Red Services</a> · <a href={siteUrl('/blog/de-plan-said-done/')}>The Plan Said Done</a>.
+
 ## The situation
 
 Data-eng-mastery awards experience points for study actions. Passing a mock exam pays 50 points plus up to 50 more scaled by score — so Priya's 82% earned her 50 + 41 = 91. XP feeds everything downstream: levels, the leaderboard, badges, streaks. Corrupt the XP and every one of those numbers inherits the lie — and support tickets about wrong XP become inadjudicable, because the system of record is the thing that lied.
