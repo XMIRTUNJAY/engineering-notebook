@@ -1,0 +1,125 @@
+---
+title: "I Let the Browser Award XP. That Was a Mistake."
+description: "The data-eng-mastery app once trusted Priya's browser to award experience points. Browsers can lie. The story of BUG-017: what I assumed, what broke, and why the server owns rewards now."
+pubDate: 2026-09-05
+---
+
+import Callout from '../../components/case-study/Callout.astro';
+import CodeExample from '../../components/case-study/CodeExample.astro';
+import { siteUrl } from '../../lib/site';
+
+> "Make the best use of what is in your power, and take the rest as it happens." — Epictetus, *Enchiridion*
+
+A browser is not in your power. It runs on hardware you don't own, executing code your user can open, modify, and replay. I knew that as a sentence long before I understood it as a design rule. The distance between those two kinds of knowing is this story.
+
+Priya passes a mock exam on a Tuesday evening — 41 out of 50, a genuine 82%, her best score yet. Her XP jumps by 91 points. She earned every one of them. The problem is that nothing in the system could prove it. Had her XP jumped by 9,000 instead, the system would have recorded that just as faithfully. The number on her dashboard was a claim her browser made, not a fact the server established. One Tuesday it told the truth. Nothing guaranteed Wednesday.
+
+**You are here:** an engineering investigation from the data-eng-mastery project — not a tutorial (the <a href={siteUrl('/tutorials/data-eng-mastery/03-api-and-data/')}>tutorial series</a> explains how the system works; this explains why one part became the way it is). The project hub tells <a href={siteUrl('/projects/data-eng-mastery/')}>the full story</a>. This article answers one question: who decides what Priya earned — her browser, or the server?
+
+## The situation
+
+Data-eng-mastery awards experience points for study actions. Passing a mock exam pays 50 points plus up to 50 more scaled by score — so Priya's 82% earned her 50 + 41 = 91. XP feeds everything downstream: levels, the leaderboard, badges, streaks. Corrupt the XP and every one of those numbers inherits the lie — and support tickets about wrong XP become inadjudicable, because the system of record is the thing that lied.
+
+The original implementation let the browser grant those rewards. Priya's frontend computed the score, told the backend what happened, and the backend recorded whatever it was told. At the time, that looked like simplicity. It was actually delegation — of authority, to a party with no obligation to be honest.
+
+## What I thought
+
+The reasoning, reconstructed from the code: the browser already knows the score — it just rendered the exam — so having it report the reward saves a round trip and keeps the submit handler thin. Fewer moving parts, faster to build, one less thing to go wrong.
+
+Underneath sat the real assumption, the one I didn't write down: *the client is part of our system, so it behaves like our system.* That sentence feels true while you're writing the only client that exists. It stops being true the moment anyone opens dev tools — or the moment your own frontend has a bug. A double-click that retries a request, a handler that fires twice, a replayed response: none of these are attacks, and all of them mint XP out of nothing. First principle, stated too late: **"the browser can calculate it" and "the browser should be trusted to calculate it" are completely different statements.**
+
+## What broke
+
+There was no dramatic outage. That is precisely what made it dangerous. Any crafted request could award arbitrary XP — but worse, ordinary accidents (retries, double submits) could inflate numbers in ways indistinguishable from legitimate progress. Follow Priya's 91 points downstream: her level rises, her leaderboard rank climbs past learners who actually outscored her, a badge unlocks, her streak extends. Five corrupted records from one unguarded write path, and no log line anywhere that distinguishes "earned" from "asserted" — because when the asserter is untrusted, the distinction doesn't exist in the data. The failure mode wasn't cheating. It was the quiet version: numbers drifting, nobody able to say which ones were real.
+
+<Callout type="lesson">
+  Loud failures get fixed. This one never raised an exception — it returned 200 OK with a lie inside. When auditing a system, I now look first at the writes that succeed silently, not the ones that crash.
+</Callout>
+
+## The investigation
+
+Short, because the history left a marker — but the shape of it is worth preserving, because most investigations end this cleanly only when someone labeled the crime scene.
+
+**Symptom.** A report, reconstructed: a learner's XP went up without the corresponding exam pass. Not "the server crashed" but "the number is wrong" — the hardest kind of report to act on, because every suspect is data, not code.
+
+**Initial hypothesis.** The natural suspects for wrong XP: the formula mis-scaling, a double-award on retry, the threshold misfiring. All of these assume the awarding logic is sound and something around it glitched.
+
+**Evidence.** In `backend/app/api/v1/exams.py`, the submit path carries this comment today:
+
+<CodeExample
+  title="Server-authoritative rewards"
+  file="backend/app/api/v1/exams.py:236"
+  what="70% pass threshold graded from stored answers; on pass, the backend awards 50 plus up to 50 scaled by score."
+  why="The BUG-017 comment is the history: clients awarded XP before, clients can lie — the backend is now the source of truth."
+  tradeoff="A deliberate import inside the route breaks a module cycle; slightly ugly in the open beats pretty-and-cheatable."
+>
+```python
+passed = score >= 0.7  # 70% passing threshold
+exam.passed = passed
+# BUG-017: award XP server-side on exam pass (backend is source of truth).
+if passed:
+    from app.services.game_state_service import record_exam_pass
+    await record_exam_pass(db, current_user.id, 50 + round(score * 50))
+```
+</CodeExample>
+
+**Root cause.** The comment records it plainly: XP used to be awarded from the client. The awarding logic wasn't glitching — it was *located in the wrong trust zone.* Every hypothesis about formula bugs was ruled out at once, because the formula was never the problem. The address was.
+
+**What was ruled out matters here.** I did not need to audit the scoring math, the leaderboard queries, or the badge rules — all downstream of the write. When corruption enters at the source, you fix the source; auditing consumers first is motion disguised as diligence.
+
+Note what that comment is doing: naming the bug number, stating the principle, and warning the next reader not to "simplify" it back. That is what a good history comment looks like — it makes the wrong code harder to write than the right code.
+
+## The decision
+
+| | Keep browser authority | Move XP server-side |
+|---|---|---|
+| Simplicity | Less code, fewer round trips | Import-cycle break, fatter backend |
+| Trust | Any client can mint XP | Only graded passes mint XP |
+| Auditability | Unverifiable after the fact | Every award traces to a graded exam row |
+| Failure recovery | Forged history is un-forgable-back | Handler complexity can be refactored later |
+| Decision | Rejected | **Chosen** |
+
+Nothing about this choice was close once stated honestly — but "simple" was doing real work in the original design, and it deserved to be weighed openly rather than mocked in hindsight. The tiebreaker that ends these debates: **which failure can you recover from?** A complex handler can be simplified later. Forged history cannot be un-forged. You always reconcile toward the thing that's hardest to repair.
+
+## The fix
+
+Trace Priya's Tuesday through the fixed handler, step by step: her browser submits answers (claims, not conclusions). The server grades them against stored questions — 41/50 = 0.82. The threshold check runs server-side: 0.82 ≥ 0.7, pass. Only then does the backend call `record_exam_pass` with 50 + round(0.82 × 50) = 50 + 41 = **91 points**. Her browser's role shrank to displaying what the server decided.
+
+For the failing case, trace it too: 30/50 = 0.60 < 0.7, no pass, no award, no negotiation. The browser cannot argue — there is no endpoint that accepts its opinion about XP anymore.
+
+One detail worth stealing: the import of `record_exam_pass` lives *inside* the route function, deliberately, to break a module cycle. A linter might flag it; a reviewer might "clean it up" into a top-level import and reintroduce the cycle. The BUG-017 comment stands guard over exactly that cleanup. Ugly-in-the-open beats pretty-and-cheatable.
+
+## How I verified it
+
+The honest accounting, in three parts:
+
+1. **Source verification (done, 2026-09-05):** no exam-pass XP path exists that the client can invoke. The only call to `record_exam_pass` on this path sits behind server-side grading. The browser can request grading; it cannot declare results.
+2. **The numbers (from the project record):** the backend suite stands at 86/86 passing, with the engine modules at 93–100% coverage — the submit path is exercised, not merely read.
+3. **The gap (open, stated plainly):** I did not execute a forged request against the running backend to watch it fail, and no regression test exists that submits a fabricated pass and asserts zero XP. The comment prevents recurrence by convention; a test would prevent it by construction. Convention is weaker. That test belongs on the backlog, named after the bug — and this section will stay honest until it exists.
+
+<Callout type="warning" title="Don't hide bad results">
+  Verification section 3 above is the point of this whole format. An article that ends "and then I fixed it" without saying what remains unproven is marketing. The forged-pass regression test is unwritten; now that's on the record too.
+</Callout>
+
+## What I missed
+
+I optimized for fewer round trips before asking who I was trusting. The general form of my error: **convenience presented as architecture.** Whenever "simpler" means "the untrusted party decides," simplicity is not a property of the design — it is a hole with good lighting. I tested the happy path (correct score → correct XP) before defining the invariant (only the server mints rewards) — and a happy-path test for a trust boundary is a test that passes precisely when the vulnerability is present.
+
+## What I would do differently
+
+If I rebuilt this today, I'd write the invariant before the implementation, in one sentence, in the route file: *no client assertion ever changes XP.* Then the regression fixture — a forged pass submission asserting zero XP — before the service code. And I'd make the state transition explicit in the domain model (answers → grading → pass → award as separate, ordered steps) rather than letting "submit" mean all of them at once. The current fix is correct and stays; these are about the order of construction, not the shape of the result.
+
+**Your turn:** pick one write path in a project you own — any place the client sends a number the server stores. Ask who decides. If the answer is "the client," you found your BUG-017.
+
+## The principle
+
+The interesting part wasn't moving the calculation to the server. It was realizing that Epictetus scales down to API design: control what you can — grade, threshold, award, all behind your locked door — and take the browser's claims as weather, to be measured, never obeyed. Name the source of truth per concern, in writing, next to the code — because the next person to touch that route will be optimizing for convenience again, and the comment is the only one in the room who remembers Tuesday.
+
+## Evidence
+
+- `backend/app/api/v1/exams.py:236` — BUG-017 comment + server-side award formula (verified 2026-09-05)
+- `backend/app/services/game_state_service.py` — `record_exam_pass` (verified present)
+- Project record: 86/86 backend tests; engine modules 93–100% coverage
+- Missing: the original client-awarded code (removed before this investigation, so the "before" is reconstructed from the comment, not quoted); a forged-pass regression test (recommended, not yet written)
+
+Related: the <a href={siteUrl('/projects/data-eng-mastery/')}>data-eng-mastery project page</a> (the BUG-017 struggle in context), <a href={siteUrl('/tutorials/data-eng-mastery/03-api-and-data/')}>Part 3: API and data model</a> (server decides, client displays — the rule this incident paid for).
