@@ -1,0 +1,75 @@
+---
+title: "Domain core: frozen entities, masked identity, honest tax"
+description: "Build value objects that can't hold invalid states, PAN handling that can't leak, and a tax engine with FY rules — verbatim code included."
+series: "mutual-fund-360"
+part: 2
+project: "mutual-fund-360"
+category: "Finance / FinTech"
+tags: ["python", "ddd", "security", "tax", "beginners"]
+technologies: ["Python 3.11", "Pytest"]
+difficulty: "beginner"
+status: "Active"
+featured: false
+draft: false
+pubDate: 2026-09-05
+---
+
+import Callout from '../../../components/case-study/Callout.astro';
+import CodeExample from '../../../components/case-study/CodeExample.astro';
+
+## Why Ravi's PAN must be unrepresentable as plaintext
+
+His folio needs a PAN (Indian tax ID) to reconcile across AMCs — and a PAN in a log file is a breach. First principle: **make invalid or dangerous states impossible to construct, not merely discouraged.** Enter the value object: a tiny type whose constructor validates and whose string form is always safe.
+
+## Step 1 — Build the PAN object
+
+Real code from `src/mf360/domain/value_objects/pan.py` (verbatim):
+
+<CodeExample
+  title="Identity that can't leak by accident"
+  file="src/mf360/domain/value_objects/pan.py"
+  what="Regex-validated PAN with normalized storage, masked display, and equality by value."
+  why="Every handler holding a PAN object holds a valid PAN — and anything printing it (logs, errors, tracebacks) emits the masked form automatically."
+  tradeoff="Conversion at every boundary (string in, PAN out). The alternative — validating inline everywhere — guarantees the one place you forget is the log statement."
+>
+```python
+_PAN_RE = re.compile(r"^[A-Z]{5}[0-9]{4}[A-Z]$")
+
+class PAN:
+    __slots__ = ("_value",)
+
+    def __init__(self, value: str) -> None:
+        normalized = value.strip().upper()
+        if not _PAN_RE.match(normalized):
+            raise ValueError(f"Invalid PAN format: {value!r}")
+        self._value = normalized
+
+    def masked(self) -> str:
+        return f"{self._value[:4]}****{self._value[-4:]}"
+
+    def __str__(self) -> str:  # pragma: no cover - avoid accidental leakage
+        return self.masked()
+```
+</CodeExample>
+
+Read the last four lines twice: `__str__` returns the mask, marked pragma-no-cover *because it must never be tested with real data*. The API persists only AES-256-GCM ciphertext plus this masked form. **Your turn:** find one secret or identifier in your project that prints raw in logs. Wrap it in a type whose `__str__` is safe. That single change class is worth more than most security scanners.
+
+## Step 2 — Freeze the entities
+
+All entities are `@dataclass(frozen=True)`: User, Portfolio, Folio, Scheme, Plan, NAV (with a `superseded_by_id` correction chain — old NAVs are never overwritten, only superseded). Frozen means no handler can mutate shared state as a side effect; change requires constructing the next version explicitly. Money and identity deserve immutability; the codebase agrees structurally, not just culturally.
+
+<Callout type="lesson" title=" staff lens">
+  Immutability here isn't aesthetic — it's the reason no handler can corrupt shared money state as a side effect. When everything is frozen, every change is explicit, reviewable, and testable. Mutable domain objects make every bug report start with "who touched this last?"
+</Callout>
+
+## Step 3 — Encode tax law as data + pure functions
+
+The `TaxRuleEngine` is pure (no I/O): given FY rules, classify gains, apply the 2018-01-31 grandfathering cutoff (`taxable = max(0, sale − max(acquisition, peak_Jan2018))`), indexate with CII tables, distinguish equity/debt/hybrid by 65%/35% thresholds. Tax rules themselves are *rows* (FY, rates, exemptions, indexation flags), not code branches — when the Finance Act changes, you insert rows, not rewrite logic. Mental model: **law changes yearly, code shouldn't have to.** Data-driven rules with a methodology version beat hardcoded rates every time.
+
+## Step 4 — Resolve schemes across time
+
+Funds merge, rename, split. `SchemeMappingService` resolves any scheme as-of any date, follows multi-hop chains, computes conversion ratios, and **raises on circular mappings** rather than looping forever. Same lesson as curriculum graphs: prove structural properties in code.
+
+## What worked, what I'd change
+
+Worked: the PAN pattern (8 tests) and frozen entities make whole bug classes unrepresentable. I'd change: the MethodologyVersion test/source drift found during verification (tests call `.parse`, code exposes `from_string`) — a 5-test failure from a rename that skipped the tests, the exact rot contracts are meant to prevent. Principle: **types are executable documentation; keep them compiling against their tests.** Next: Part 3 — the money math itself.

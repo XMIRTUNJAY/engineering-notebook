@@ -1,0 +1,62 @@
+---
+title: "Method and monolith: how a 383-file project stays coherent"
+description: "Follow one investor from CAS upload to reviewed portfolio while learning the doc/ vs docs/ split, task protocol, and DDD layers that keep it coherent."
+series: "mutual-fund-360"
+part: 1
+project: "mutual-fund-360"
+category: "Finance / FinTech"
+tags: ["python", "fastapi", "ddd", "architecture", "beginners"]
+technologies: ["Python 3.11", "FastAPI", "PostgreSQL"]
+difficulty: "beginner"
+status: "Active"
+featured: true
+draft: false
+pubDate: 2026-09-05
+---
+
+import Callout from '../../../components/case-study/Callout.astro';
+
+## Meet your investor
+
+Ravi holds mutual funds across three AMCs, pays regular-plan fees he has never computed, and suspects two funds own the same stocks. He uploads his CAS statement. What happens next — parse, map, validate, correct, analyze, answer — is this entire series. Part 1 builds the map of the territory.
+
+## Step 1 — Separate the gospel from the blueprint
+
+The repo holds two documentation trees, and confusing them is the first mistake:
+
+```text
+doc/    # master reference, READ-ONLY (feature catalogue, master prompt)
+docs/   # live blueprint: specs, ADRs, tasks, reports — read AND update
+```
+
+Mental model: **doc/ is the constitution, docs/ is the legislation.** Tasks never edit the master; they derive specs from it and report back. When these merge (as they do in most repos), nobody knows which document wins an argument. **Your turn:** in your project, label one directory read-only reference and one living blueprint. Watch how many arguments disappear.
+
+## Step 2 — Work in tasks, report in writing
+
+`docs/tasks/` holds `TASK_XXX_*.md` prompts plus sibling `TASK_XXX_REPORT.md` completions, generated four at a time under scope guards (one module per task, binary acceptance, hard stop). Progress is a paper trail, not a feeling. For Ravi's journey, tasks 001–004 built foundation, auth, fund master, and seed data — the floor everything else stands on.
+
+## Step 3 — Read the DDD layers bottom-up
+
+```text
+src/mf360/
+├── domain/         # entities, value objects, services, repository interfaces
+├── application/    # use-case commands and queries
+├── infrastructure/ # persistence, ingestion, clients, jobs, security
+├── api/            # routes, schemas, middleware (health/auth/portfolios/folios/funds)
+├── mcp/            # reserved for the read-only agent server
+├── config.py / database.py
+```
+
+Dependencies point inward: API calls application, application calls domain, domain imports nothing. A Ravi-facing endpoint like `POST /portfolios/{id}/folios` flows folio route → `CreateFolioCommand` → PAN value object + AES-GCM encryption → repository → response with PAN masked. Learn that one chain and you can read the other fifteen router groups the same way.
+
+<Callout type="lesson" title=" staff lens">
+  Juniors navigate by file search; seniors navigate by layer contract. Before touching unfamiliar code, ask "which layer am I in, and which direction do dependencies flow?" — the answer locates every bug faster than grep.
+</Callout>
+
+## What each API area does for Ravi
+
+Health (liveness probe), auth (register/login/refresh/logout/profile), portfolios (his containers, soft-deleted never destroyed), folios (per-AMC accounts with encrypted PAN), fund master (the reference universe: AMCs, categories, benchmarks, managers, schemes, plans, ISINs, merger mappings — all public read endpoints). Full method list with paths lives in the archaeology record; the pattern to internalize is one: **every write is a command, every read is a query, neither knows HTTP beyond the route.**
+
+## What worked, what I'd change
+
+Worked: the doc/docs split survived real development — the master stayed pristine while the blueprint evolved. I'd change: the tasks table already lags reality (a completion report exists for a task still marked READY) — trackers rot the moment updating them feels optional. Principle: **process artifacts need owners, not just templates.** Next: Part 2 opens the domain core — frozen entities, PAN masking, and the tax engine.

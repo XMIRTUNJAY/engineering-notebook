@@ -1,0 +1,66 @@
+---
+title: "API, security, testing, and capstone"
+description: "Serve Ravi's data with RLS and masked PANs, prove money math with 24 golden portfolios, and keep the glossary and principles worth stealing."
+series: "mutual-fund-360"
+part: 5
+project: "mutual-fund-360"
+category: "Finance / FinTech"
+tags: ["python", "fastapi", "security", "testing", "beginners"]
+technologies: ["FastAPI", "PostgreSQL", "Pytest"]
+difficulty: "beginner"
+status: "Active"
+featured: false
+draft: false
+pubDate: 2026-09-05
+---
+
+import Callout from '../../../components/case-study/Callout.astro';
+
+## Step 1 — Serve with row-level paranoia
+
+Auth is JWT (15-min access, 30-day rotating refresh, Argon2id, 5 attempts per 15 min per IP). Then defense in depth: Postgres **row-level security** on every tenant table keyed to the session user (verified by tests asserting zero rows without a tenant, and that user B cannot list user A's portfolios), app-level `user_id` scoping on top, PAN encrypted AES-256-GCM with masked display, rate limits per surface (auth 5/min, imports 10/hr, reports 5/hr), security headers, RFC7807 errors. First principle: **no single layer is the security model** — RLS guards against app bugs, app scoping guards against RLS misconfiguration, masking guards against log leaks.
+
+## Step 2 — Test money like money depends on it
+
+Unit tests pin functions; API tests pin contracts (201/409/422 shapes, pagination, cross-user 404s); security tests pin isolation. But money fails at intersections — a merger during a SIP with a missing NAV day — so **golden portfolios GP-01…GP-24** specify full scenarios (inputs: transactions + NAVs; expected: holdings, lots, opportunities, alerts) with methodology versions pinned. Measured locally: **94 passing, 5 failing** — all five share one root cause (tests call `MethodologyVersion.parse`, code exposes `from_string`), a rename that skipped its tests. Even the failure teaches the lesson: contracts cut both ways.
+
+## Step 3 — Know what "done" means
+
+Launch gates from the repo's own plan: golden suite at 100%, p95 latency under 200ms, rebuild under 30 seconds, zero high/critical security findings, mypy and ruff clean. Until then: an honest, tested, well-mapped backend with a scaffold frontend — which is exactly what this series claims, no more.
+
+<Callout type="lesson" title=" staff lens">
+  Test shapes should mirror failure shapes: functions get unit tests, contracts get API tests, isolation gets security tests, and money gets golden scenarios. A suite with only one shape is a bet that failures come in one shape — they never do.
+</Callout>
+
+## Vocabulary (his words → our words)
+
+- **CAS** — consolidated account statement; the messy truth ingestion starts from.
+- **NAV** — daily per-unit price; history with a supersession chain, never overwrites.
+- **Folio** — one account with one AMC; PAN-identified, encrypted, masked.
+- **TER leakage** — regular-plan fees minus direct-plan fees, in rupees per year.
+- **XIRR / CAGR / TWR** — money-weighted / smooth / manager-skill returns; never interchange them.
+- **Tax lot (FIFO)** — which units you "sold" determines the tax bill.
+- **Grandfathering** — pre-2018-01-31 gains shielded by law, encoded as data.
+- **Golden portfolio** — a full money scenario with expected outputs, pinned to a methodology version.
+- **RLS** — the database itself enforcing tenant isolation per session.
+- **DLQ** — where failed jobs wait to be understood, not where they vanish.
+
+## What worked
+
+Frozen entities that make leaks unrepresentable; methodology-doc-first formulas; corrections-as-rows lineage; golden scenarios for interaction bugs; mission guardrails (no execution, no rankings, no affiliates) that keep trust structural, not promised.
+
+## What didn't (resolved, evidenced)
+
+Client-side trust assumptions → server authority (BUG-017 pattern). Untested math → golden + unit suites. Fixture pollution → seed/teardown discipline. Test/source rename drift (the 5 failures) → rename protocol: change code and tests in one commit. Each encoded so it teaches forever.
+
+## What I'd change
+
+Calibrate thresholds (overlap 5%, correlation 0.85, drift 5%) against real fund histories — currently expert-set. Collapse duplicate test layouts. Promote the progress tracker to weekly ritual.
+
+## Principle worth keeping
+
+Money software earns trust the way banks do: provenance for every number, corrections instead of edits, tests shaped like the failures, and the discipline to say what isn't proven yet.
+
+## What I'd investigate next
+
+Precision/recall study on the 0.80 fuzzy threshold; hybrid ranking experiments; per-section time estimates from attempt data. Hypotheses first, numbers after — each a future experiment on this site. **Your turn:** pick one, write its hypothesis in a sentence, and name the measurement that confirms it.

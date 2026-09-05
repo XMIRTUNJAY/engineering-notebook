@@ -55,6 +55,8 @@ const seriesTitle = project?.data.title ?? lesson.data.series;
 		{ label: seriesTitle, href: siteUrl(`/tutorials/${lesson.data.series}/`) },
 	]}
 	ogImage={project?.data.cover ? siteUrl(project.data.cover) : undefined}
+	heroSrc={siteUrl(`/tutorials/${lesson.id.replace('/', '--')}.svg`)}
+	heroAlt={lesson.data.title}
 	datePublished={lesson.data.pubDate.toISOString()}
 	dateModified={lesson.data.updatedDate?.toISOString()}
 	canonicalPath={`/tutorials/${lesson.data.series}/${lesson.id.split('/').slice(1).join('/')}/`}

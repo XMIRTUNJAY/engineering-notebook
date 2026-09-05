@@ -27,6 +27,8 @@ const { Content } = await render(experiment);
 	]}
 	tags={experiment.data.tags}
 	crumbs={[{ label: 'Experiments', href: siteUrl('/experiments/') }]}
+	heroSrc={siteUrl(`/experiments/${experiment.id}.svg`)}
+	heroAlt={experiment.data.title}
 	datePublished={experiment.data.pubDate.toISOString()}
 	dateModified={experiment.data.updatedDate?.toISOString()}
 	canonicalPath={`/experiments/${experiment.id}/`}

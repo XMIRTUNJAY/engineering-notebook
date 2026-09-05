@@ -25,6 +25,8 @@ const { Content } = await render(post);
 		...(post.data.updatedDate ? [`Updated ${post.data.updatedDate.toISOString().slice(0, 10)}`] : []),
 	]}
 	crumbs={[{ label: 'Writing', href: siteUrl('/blog/') }]}
+	heroSrc={siteUrl(`/blog/${post.id}.svg`)}
+	heroAlt={post.data.title}
 	datePublished={post.data.pubDate.toISOString()}
 	dateModified={post.data.updatedDate?.toISOString()}
 	canonicalPath={`/blog/${post.id}/`}

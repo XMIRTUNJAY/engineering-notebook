@@ -1,0 +1,45 @@
+---
+title: "Ingestion: CAS files, deltas, NAVs, and fuzzy matching"
+description: "Turn Ravi's messy statements into validated facts: CAS parsing, correction rows, NAV pipeline, and 4-strategy scheme mapping with confidences."
+series: "mutual-fund-360"
+part: 4
+project: "mutual-fund-360"
+category: "Finance / FinTech"
+tags: ["python", "data-pipeline", "ingestion", "beginners"]
+technologies: ["Python 3.11", "PostgreSQL", "Redis"]
+difficulty: "beginner"
+status: "Active"
+featured: false
+draft: false
+pubDate: 2026-09-05
+---
+
+import Callout from '../../../components/case-study/Callout.astro';
+
+## The problem with real statements
+
+Ravi uploads a CAS file. It names his fund three different ways across two registrars, one NAV day is missing, and last month's file had a typo the AMC silently fixed. First principle: **ingestion assumes hostility — every row guilty until validated.** Four mechanisms below, each-capable alone, formidable together.
+
+## Step 1 — Parse forgivingly, validate strictly
+
+Two CAS formats (CAMS, Karvy) parse through `casparser` plus a forgiving fallback parser, pinned by golden regression fixtures (`cams_sample.csv`, `karvy_sample.csv`). Parse leniently — accept the world's mess — then validate ruthlessly against schemas. **Your turn:** list what your importer accepts versus what it validates. If those lists are the same list, your importer trusts strangers.
+
+## Step 2 — Never edit, always correct
+
+Re-uploads and AMC fixes arrive as deltas keyed on natural identity (folio + scheme + plan + option + date + type + units + NAV + amount). New rows insert as `CAS`; changed rows insert as `CORRECTION` rows — history is append-only, and NAVs form a supersession chain (`superseded_by_id`) rather than overwrites. The audit payoff: any number is explainable as a chain of corrections, and "who changed what when" is a query, not an investigation. Tradeoff: storage grows with corrections — accepted explicitly, because trust compounds faster than disk fills.
+
+## Step 3 — Map names with confidences, not hope
+
+"Birla Sun Life Frontline Equity" vs "Aditya Birla SL Frontline Equity Fund" — same scheme, different decade. The 4-strategy mapper tries in order: AMFI code (confidence 1.0) → ISIN (0.98) → normalized name (0.95) → fuzzy match ≥ 0.80 via difflib. Below threshold: unmapped, queued for human review, never guessed into the books. Mental model: **match scores are probabilities wearing work clothes** — record the confidence with the mapping so downstream code knows how much to trust it.
+
+## Step 4 — Run the NAV heartbeat
+
+Nightly APScheduler rhythm (IST): download AMFI's NAVAll.txt (~2,000 schemes) → parse flexible columns → upsert in 500-row batches → normalize → recalculate → reports. Partitioned monthly tables stay six months ahead via a daily partition job; a portfolio-level advisory lock serializes concurrent rebuilds. SLAs are explicit (NAV fresh within 4 hours, CAS processed in 2 minutes, full rebuild under 30 seconds) — and jobs, batches, and Bronze records with SHA-256 hashes make every miss diagnosable.
+
+<Callout type="lesson" title=" staff lens">
+  Data quality is a pipeline property, not a data property. Same bytes through parse→validate→correct→audit produce trust; through a direct insert they produce incidents. When inheriting a pipeline, read it backwards from the audit trail: whatever can't explain itself is where your next outage lives.
+</Callout>
+
+## What worked, what I'd change
+
+Worked: corrections-as-rows plus supersession chains — full lineage with zero destructive writes. I'd change: the fuzzy threshold (0.80) is expert-set; a measured precision/recall study on historical mappings would turn it from judgment into evidence. Principle: **preserve everything, assert explicitly, correct by appending.** Next: Part 5 — serving it all securely, testing it like money depends on it.

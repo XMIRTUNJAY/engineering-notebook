@@ -1,0 +1,115 @@
+---
+title: "Agent skills field guide: what to use, where to find them, what to build"
+description: "Anatomy of an agent skill, a checklist mapping tasks to skills from a real inventory, how local skills compare to Claude conventions, and which custom skills are worth building."
+pubDate: 2026-09-05
+---
+
+import ArchitectureDiagram from '../../components/case-study/ArchitectureDiagram.astro';
+import Callout from '../../components/case-study/Callout.astro';
+
+## Your map today: the hermes collection as it stands
+
+I checked everywhere skills could live: `hermes_agent` (README-only, zero commits — re-verified), `hermes-agent` and `hermes_knowledge_architect` (empty), `~/.hermes` (memory models only), local skill dirs, plugin caches. Honest result: **no hermes-authored skills exist yet.** What exists is installed inventory, mapped here so the gaps are visible:
+
+<ArchitectureDiagram
+  title="Skill landscape: have vs need"
+  chart={`flowchart TB
+    subgraph Have["INSTALLED (audit-verified)"]
+        P["Process skills\nbrainstorming, debugging,\nTDD, plans, verification"]
+        D["Domain skills\nreview-team, web-design,\npydantic-ai-agents"]
+    end
+    subgraph Gap["MISSING (build these)"]
+        C["Custom workflow skills\nevidence-pack, verify-gate,\ndemo-video"]
+        M["Memory skills\nmnemosyne read/write\nconventions"]
+        S["Scheduling skills\ncron job patterns"]
+    end
+    P --> C
+    D --> C`}
+  caption="Arrows show lineage: the proposed custom skills distill the installed process skills plus hand-debugged pipeline experience."
+/>
+
+| Skill | Source (verified path) | Authorship | Verdict |
+| ----- | ---------------------- | ---------- | ------- |
+| review-team | `~/.agents/skills/` | installed | above average (fleet pattern) |
+| web-design-guidelines | `~/.agents/skills/` (Vercel-authored) | installed | above average (live-fetch) |
+| building-pydantic-ai-agents | `~/.agents/skills/` | installed | solid, narrow-deep |
+| brainstorming / TDD / debugging / plans | session context | installed | strong process coverage |
+| evidence-pack / verify-gate / demo-video | **does not exist yet** | **you, proposed** | would be unique: no public skill encodes project-to-case-study pipelines |
+| mnemosyne memory conventions | **does not exist yet** | **you, proposed** | matches the hermes README promise (persistent memory) with zero implementation behind it |
+| cron/scheduling patterns | **does not exist yet** | **you, proposed** | matches the README promise, unimplemented |
+
+<Callout type="lesson" title=" staff lens">
+  Uniqueness isn't a property of skills you install — it's a property of workflows only you have performed. The hermes collection today is 100% installed, 0% authored. The three proposed skills would flip that ratio with material no marketplace sells, because marketplaces sell generic capabilities and these encode your specific pipeline.
+</Callout>
+
+## What a skill actually is
+
+Strip away the branding and an agent skill is three things: a **trigger** (a description the agent matches against your request), a **procedure** (Markdown instructions loaded on demand, not stuffed into every context), and **resources** (reviewer prompts, reference files, scripts in the same directory). The standard shape is one `SKILL.md` with frontmatter:
+
+```yaml
+---
+name: review-team
+description: Use when the user asks for a code review by a fleet of
+  specialized reviewer agents ...
+---
+```
+
+Progressive disclosure is the whole game: the agent reads a one-line description for every skill, and only opens the full file when your task matches. A skill with a vague description never fires; a skill with everything inlined wastes context on every run. That single tradeoff explains most skill quality differences I've seen.
+
+## Checklist: task → skill → where to find it
+
+Drawn from a real working inventory (process skills, local skills, platform plugins):
+
+| When you say | Invoke | Lives in |
+| ------------ | ------ | -------- |
+| "Let's build X" (new feature/system) | brainstorming | process skills (spec before code, approval gate) |
+| "Fix this bug / tests failing" | systematic-debugging | process skills (reproduce first, no blind fixes) |
+| "Add a feature, fix a bug" (implementation) | test-driven-development | process skills (test first, then code) |
+| "Review my code" (one pass or until clean) | review-team | local skills (11-reviewer subagent fleet, single/iterate modes) |
+| "Review my UI / check accessibility" | web-design-guidelines | local skills (fetches live Vercel rules, `file:line` findings) |
+| "Build an AI agent / add tools" | building-pydantic-ai-agents | local skills (tools, streaming, testing patterns) |
+| "Write the plan first" (multi-step work) | writing-plans | process skills (plan → approve → execute) |
+| "Is this done?" (before claiming completion) | verification-before-completion | process skills (run checks, then assert) |
+| "Split this across parallel workers" | dispatching-parallel-agents / subagent-driven-development | process skills |
+| "Isolate this feature work" | using-git-worktrees | process skills |
+
+Mental model: **process skills decide *how* to work, domain skills supply *what* to know.** A review-task fires both (debugging process + reviewer fleet). If your request matches neither kind, you don't need a skill — you need a direct answer.
+
+## Where skills live (and where to look first)
+
+1. **Your own directories** (highest trust): `~/.agents/skills/` and project `.agents/` — versioned with your dotfiles, fully inspectable. Audit these first; everything here runs with your permissions.
+2. **Platform plugin caches** (opencode: `~/.cache/opencode/packages/`): community plugins — learning loops, worktrees, sandboxes, memory servers. Read the SKILL.md before enabling; check what tools each one requests.
+3. **Official formats**: Claude's Agent Skills spec is the reference design (frontmatter trigger + progressive disclosure). Any skill following that shape ports across harnesses with minimal edits.
+4. **Inside the session**: some skills exist only as loaded context (like the process skills above). Useful, but unversioned — promote the ones you rely on into files.
+
+## Are local skills on par with good Claude skills?
+
+Assessed against the conventions that matter — verdict per skill, from files I actually read:
+
+**review-team — above average.** The fleet pattern (11 isolated reviewers, independence wrapper, parallel launch, aggregation with dedup) is more sophisticated than most public review skills, which tend to be single checklists. The `single` vs `iterate` mode default shows judgment: iterate loops cost real money, so they require explicit consent. Gap: no verification hook tying findings to test runs.
+
+**web-design-guidelines — above average, for one reason.** It fetches live rules from Vercel's repo before each review instead of embedding a snapshot that rots. Most custom skills hardcode knowledge with a half-life; this one outsources freshness to the source. (Failure mode to know: offline or moved URL degrades it to nothing — a cached fallback would harden it.)
+
+**building-pydantic-ai-agents — solid.** Covers the full surface (tools, streaming, testing) rather than just scaffolding. Typical of good domain skills: narrow, deep, boring in the right way.
+
+Honest gap across the board: **none of these are the owner's authorship** — they're installed, not built. There is no skill here that encodes *your* hard-won workflow. That is also the opportunity.
+
+## What to build: skill ideas from a real pipeline
+
+The most valuable custom skills come from workflows you've already debugged by hand. From a recent project-to-case-study pipeline, three skills write themselves:
+
+1. **Evidence-pack skill** — read-only repo inspector (tree minus junk dirs, manifests capped, TODO grep, test inventory) producing one Markdown pack. Trigger: any "document this repo" task. Reusable across every future project.
+2. **Verification-gate skill** — build, link audit, console check, breakpoint screenshots, JSON-LD parse, sitemap diff. Trigger: before any "ship it" claim. Encodes "evidence before assertions" as an executable checklist.
+3. **Demo-video skill** — scripted per-tab recording with content-gated waits, TTS narration from figure-free scripts, trim-to-loaded-tail muxing, frame verification. Trigger: "demo this app." The non-obvious rules (never fixed timers, never stream-copy concat, never real user data) are exactly the knowledge that deserves a skill file.
+
+<Callout type="lesson" title=" staff lens">
+  The test of a skill collection isn't count, it's coverage: for every task you repeat monthly, is there a skill that makes it reproducible? Audit your repeats, not the marketplace. Build the three you already perform by hand — those are the only custom skills guaranteed to pay back.
+</Callout>
+
+## What worked, what I'd change
+
+Worked: trigger-first design (description matching beats keyword lists), progressive disclosure (resources stay unloaded until needed), mode defaults that respect cost (single over iterate). I'd change: add verification hooks to review skills (tie findings to test output), a cached fallback for live-fetch skills, and authorship — the highest-leverage skill work is converting your own repeated workflows into files, starting with the three above.
+
+## Principle worth keeping
+
+Skills don't make agents smart; they make agents *repeatable*. The intelligence stays in the model — the skill just ensures the tenth run follows the same hard-won procedure as the first. Write down what works, trigger it by description, and version it like code.

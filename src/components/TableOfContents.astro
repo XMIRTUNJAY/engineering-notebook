@@ -6,6 +6,7 @@
 		<summary>On this page</summary>
 		<nav class="toc-nav" data-toc></nav>
 	</details>
+	<p class="toc-label" aria-hidden="true">On this page</p>
 	<nav class="toc-desktop" data-toc></nav>
 </aside>
 
@@ -55,7 +56,10 @@
 				entries.forEach(function (entry) {
 					if (!entry.isIntersecting) return;
 					links.forEach(function (a) {
-						a.classList.toggle('active', a.dataset.target === (entry.target as HTMLElement).id);
+						var on = a.dataset.target === (entry.target as HTMLElement).id;
+						a.classList.toggle('active', on);
+						var li = a.closest('li');
+						if (li) li.classList.toggle('active', on);
 					});
 				});
 			},
@@ -67,39 +71,70 @@
 	})();
 </script>
 
-<style>
-	.toc-desktop {
+<style is:global>
+	.toc {
 		position: sticky;
-		top: 84px;
+		top: 120px;
+	}
+	.toc-desktop {
 		font-size: 0.85rem;
-		max-height: calc(100vh - 120px);
-		overflow-y: auto;
 	}
 	.toc-desktop:empty {
 		display: none;
 	}
+	.toc-label {
+		display: none;
+	}
 	.toc-desktop ol {
+		counter-reset: toc;
 		list-style: none;
 		margin: 0;
-		padding: 0 0 0 1em;
-		border-left: var(--border);
+		padding: 0;
 	}
 	.toc-desktop li {
-		margin: 0.35em 0;
+		counter-increment: toc;
+		display: flex;
+		gap: 0.6em;
+		align-items: baseline;
+		margin: 0;
+		padding: 0.65em 0;
+		border-bottom: 1px solid rgb(var(--gray-light));
+	}
+	.toc-desktop li:last-child {
+		border-bottom: none;
+	}
+	.toc-desktop li::before {
+		content: counter(toc) '.';
+		color: rgb(var(--gray));
+		font-variant-numeric: tabular-nums;
+		min-width: 2.2ch;
+		text-align: right;
+		font-size: 0.85em;
+		flex-shrink: 0;
 	}
 	.toc-desktop li.toc-h3 {
-		padding-left: 1em;
+		padding-left: 1.2em;
+		font-size: 0.9em;
+	}
+	.toc-desktop li.active::before {
+		color: rgb(var(--black));
+		font-weight: 600;
 	}
 	.toc-desktop a {
 		color: rgb(var(--gray));
 		text-decoration: none;
+		line-height: 1.4;
+		flex: 1;
+		min-width: 0;
 	}
 	.toc-desktop a:hover {
 		color: rgb(var(--black));
+		text-decoration: none;
 	}
 	.toc-desktop a.active {
-		color: var(--accent);
-		font-weight: 700;
+		color: rgb(var(--black));
+		font-weight: 600;
+		text-decoration: none;
 	}
 	.toc-mobile {
 		display: none;
@@ -113,19 +148,51 @@
 		font-weight: 700;
 	}
 	.toc-mobile .toc-nav ol {
+		counter-reset: toc;
 		list-style: none;
 		margin: 0.75em 0 0.25em 0;
 		padding: 0;
 	}
 	.toc-mobile .toc-nav li {
-		margin: 0.3em 0;
+		counter-increment: toc;
+		display: flex;
+		gap: 0.6em;
+		align-items: baseline;
+		margin: 0;
+		padding: 0.55em 0;
+		border-bottom: 1px solid rgb(var(--gray-light));
+	}
+	.toc-mobile .toc-nav li:last-child {
+		border-bottom: none;
+	}
+	.toc-mobile .toc-nav li::before {
+		content: counter(toc) '.';
+		color: rgb(var(--gray));
+		font-variant-numeric: tabular-nums;
+		min-width: 2.2ch;
+		text-align: right;
+		font-size: 0.85em;
+		flex-shrink: 0;
 	}
 	.toc-mobile .toc-nav a {
 		color: rgb(var(--gray-dark));
 		text-decoration: none;
+		line-height: 1.4;
+		flex: 1;
+		min-width: 0;
+	}
+	.toc:has(.toc-desktop:empty) .toc-label {
+		display: none;
+	}
+	.toc:has(.toc-desktop:empty) .toc-mobile {
+		display: none;
 	}
 	@media (max-width: 1024px) {
-		.toc-desktop {
+		.toc {
+			margin-top: 0;
+		}
+		.toc-desktop,
+		.toc-label {
 			display: none;
 		}
 		.toc-mobile {

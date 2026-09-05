@@ -1,0 +1,47 @@
+---
+title: "Money math: XIRR, TER leakage, overlap, and harvesting"
+description: "Compute what Ravi actually pays and earns: XIRR with fallbacks, regular-vs-direct lifetime cost, overlap flags, and tax-loss harvesting — formulas first."
+series: "mutual-fund-360"
+part: 3
+project: "mutual-fund-360"
+category: "Finance / FinTech"
+tags: ["python", "finance", "math", "beginners"]
+technologies: ["Python 3.11", "Pytest"]
+difficulty: "beginner"
+status: "Active"
+featured: false
+draft: false
+pubDate: 2026-09-05
+---
+
+import Callout from '../../../components/case-study/Callout.astro';
+
+## Start from Ravi's questions, not from formulas
+
+He doesn't want "performance analytics" — he wants: *am I paying too much? are two funds the same bet twice? should I sell losers before March?* Every formula below answers one of those in rupees. Methodology first (documented in `FINANCIAL_METHODOLOGY.md`), code second, golden portfolios always.
+
+## Step 1 — True returns: XIRR, then fallbacks
+
+XIRR solves `Σ cf / (1+r)^(days/365) = 0` via Newton-Raphson across five starting guesses, bounded (−0.99, 10). Purchases enter negative (plus charges), redemptions positive (minus charges), terminal value closes the series. When it can't answer — too few flows, no convergence, closed positions — it returns null **with a reason code** (`INSUFFICIENT_CASHFLOWS`, `NO_CONVERGENCE`, `ALL_POSITIONS_CLOSED`) plus a CAGR fallback. **Your turn:** never return a bare null from a calculation. Always pair it with *why*, or every downstream consumer invents its own meaning for missing.
+
+CAGR covers benchmarks and no-cashflow periods (`(end/begin)^(1/years) − 1`, 365.25-day years); TWR chains subperiod returns. Rule of thumb the codebase follows: XIRR for money-weighted reality, CAGR for comparison, TWR for manager skill. Using CAGR on a SIP is the classic beginner error — now you know why.
+
+## Step 2 — What Ravi pays: TER leakage in rupees
+
+`annual_ter_cost = holding value × plan expense ratio`, portfolio-weighted across holdings. Then the killer comparison: **regular vs direct**. Same scheme, same option, different plan — `annual_savings = value × (regular_TER − direct_TER)`, lifetime-scaled minus exit-load and tax costs. Work it: ₹10L at 1.0% TER gap = ₹10,000/year leaking; over 15 years, six figures of silence. That single subtraction is the product's headline feature, and it fits in one line because the fund-master model already links plans to schemes.
+
+## Step 3 — Duplication and deterioration flags
+
+Overlap: category score `min(alloc_A, alloc_B)` flagged above 5%; return correlation (Pearson > 0.85 on 250 daily NAVs) for statistical twins. Concentration: single fund > 25%, single AMC > 40%, top-10 > 80%. Underperformance: 1-year rolling misses in > 70% of periods, 3-year misses > 60% with > 2% average lag — one criterion watches, two review, three sound the alarm. Allocation drift beyond 5% flags rebalancing. Every threshold is a named constant from the methodology doc, never a magic number — and every one is debatable on purpose, which is why they live in docs first.
+
+## Step 4 — Harvesting: tax as a feature
+
+Tax-loss harvesting: `loss = units × (acquisition_NAV − current_NAV)`; short-term if held under the STCG window; STCL offsets STCG+LTCG, LTCL offsets LTCG only, carry forward 8 years; `net_benefit = tax_savings − exit_load − STT − reinvestment_risk`, flagged above ₹1,000. Grandfathering (`max(0, sale − max(acquisition, Jan-2018 peak))`), indexation via CII tables, and the same-AMC-switch-isn't-taxable rule all come from versioned TaxRule rows — law as data, per Part 2.
+
+<Callout type="lesson" title=" staff lens">
+  Juniors compute numbers; seniors compute numbers with provenance. Every figure Ravi sees should answer three questions: which methodology version, from which inputs, with what fallback when inputs ran out. If it can't, it's decoration.
+</Callout>
+
+## What worked, what I'd change
+
+Worked: methodology-doc-first means formulas are reviewable by finance-literate humans before coders touch them. I'd change: thresholds deserve calibration studies against real fund histories — currently expert-set, unmeasured. Principle: **document the formula, the fallback, and the doubt.** Next: Part 4 — getting messy real-world data into these engines.

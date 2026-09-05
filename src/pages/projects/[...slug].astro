@@ -38,6 +38,15 @@ const seriesOrder: string[] = [...new Set(lessons.map((l) => l.data.series))];
 		url={`https://xmirtunjay.github.io/engineering-notebook/projects/${project.id}/`}
 		tags={project.data.stack}
 	/>
+	<figure class="hero">
+		<img
+			src={siteUrl(`/projects/${project.id}.svg`)}
+			alt={project.data.title}
+			width="1200"
+			height="720"
+			loading="eager"
+		/>
+	</figure>
 	<div class="case-grid">
 		<div class="case-body" data-article-body>
 			<p class="back">
@@ -83,6 +92,17 @@ const seriesOrder: string[] = [...new Set(lessons.map((l) => l.data.series))];
 	}
 	.case-body {
 		min-width: 0;
+	}
+	.hero {
+		margin: 0 0 var(--space-4) 0;
+	}
+	.hero img {
+		display: block;
+		width: 100%;
+		height: auto;
+		border: var(--border);
+		border-radius: var(--radius);
+		background: var(--card);
 	}
 	.back {
 		font-family: var(--font-mono);

@@ -1,0 +1,161 @@
+---
+title: "MF360: Mutual Fund Intelligence Platform"
+description: "A DIY investor platform answering six money questions: what you own, what it costs, where you duplicate, what deteriorates, what to review, what works."
+repo: "https://github.com/XMIRTUNJAY/MF360"
+stack: ["Python 3.11", "FastAPI", "PostgreSQL 16", "Redis", "SQLAlchemy 2", "Alembic", "Next.js 14"]
+category: "Finance / FinTech"
+status: "Active"
+portfolioScore: 90
+featured: true
+draft: false
+language: "Python"
+focus: ["Domain-driven modular monolith", "Financial methodology as code", "CAS ingestion with corrections", "Golden-portfolio testing"]
+---
+
+import ProjectHero from '../../components/case-study/ProjectHero.astro';
+import TechStack from '../../components/case-study/TechStack.astro';
+import ProjectMetadata from '../../components/case-study/ProjectMetadata.astro';
+import ArchitectureDiagram from '../../components/case-study/ArchitectureDiagram.astro';
+import Callout from '../../components/case-study/Callout.astro';
+import Decision from '../../components/case-study/Decision.astro';
+import EvidenceBar from '../../components/case-study/EvidenceBar.astro';
+import MetricsTable from '../../components/case-study/MetricsTable.astro';
+import Timeline from '../../components/case-study/Timeline.astro';
+import { siteUrl } from '../../lib/site';
+
+<ProjectHero
+  title="MF360"
+  subtitle="Most investors can't answer six basic questions: what do I own across all folios, what is it really costing me, where am I duplicated, what is deteriorating, what deserves review, what am I doing well? MF360 exists because brokerage statements answer none of them — and spreadsheets answer them once, then rot."
+  status="Active build"
+  category="Finance / FinTech"
+  score={90}
+  repoUrl="https://github.com/XMIRTUNJAY/MF360"
+  meta={[
+    { label: 'Code files', value: '383 (Python 240)' },
+    { label: 'Unit tests', value: '94 passing' },
+    { label: 'Doc pages', value: '102 + ADRs' },
+    { label: 'Migrations', value: '7, linear' },
+  ]}
+/>
+
+<TechStack items={['Python 3.11', 'FastAPI', 'PostgreSQL 16', 'Redis', 'MinIO', 'SQLAlchemy 2', 'Alembic', 'Pytest', 'Next.js 14']} />
+
+<EvidenceBar items={[
+  { label: 'Unit tests', value: '94 passed, 5 failed*' },
+  { label: 'Test suites', value: 'unit/integration/api/golden' },
+  { label: 'Docs', value: '102 pages + 11 ADRs' },
+  { label: 'Measured', value: '2026-09-05' },
+]} />
+
+## What
+
+A mutual-fund intelligence platform for DIY Indian investors: import your CAS statement, get a consolidated portfolio, true cost of ownership (regular-vs-direct leakage in rupees), overlap detection, underperformance flags, tax-loss harvesting hints, and reconciled returns. Method-first: every formula lives in a versioned methodology doc before it lives in code.
+
+<ProjectMetadata rows={[
+  { label: 'Language', value: 'Python 3.11 (strict typing)' },
+  { label: 'Shape', value: 'Modular monolith (DDD layers)' },
+  { label: 'Storage', value: 'Postgres 16, Redis, MinIO/S3' },
+  { label: 'State', value: 'JWT sessions, server-side XP' },
+  { label: 'Deploy', value: 'Docker Compose, APScheduler jobs' },
+  { label: 'Tests', value: 'Pytest + golden portfolios + property' },
+]} />
+
+## Why this shape
+
+Three pressures: money math must be auditable (hence formulas in docs first, code second, golden portfolios always); Indian mutual-fund data is messy (CAS files, NAV histories, scheme mergers — hence a 4-strategy scheme mapper plus corrections pipeline); and trust is the product (hence PAN encryption, masked display, audit logs, and mission guardrails that permanently exclude rankings, affiliates, and ads).
+
+<Callout type="decision" title="Why a modular monolith, not microservices">
+  One deployable, strict internal boundaries (ADR-001). A solo/small team cannot operate distributed systems honestly — no network partitions to debug, no version skew across services — while DDD layers keep the code splittable later if scale ever demands it.
+</Callout>
+
+## Constraints
+
+- Money math must be reproducible (methodology versions, golden portfolios).
+- PAN must never appear in plaintext outside encryption (AES-256-GCM + masked display).
+- Content pipeline must survive bad data (validators, dead-letter queue, corrections as rows).
+- No execution, no rankings, no affiliates (mission guardrails, permanently excluded).
+- Must run fully local via Compose (Postgres + Redis + MinIO).
+
+## Architecture at a glance
+
+<ArchitectureDiagram
+  title="Money in, answers out"
+  chart={`flowchart LR
+    subgraph In["Inputs"]
+        CAS["CAS statements"]
+        NAV["AMFI NAV feed"]
+        SEBI["SEBI / AMC data"]
+    end
+    subgraph Pipe["Ingestion (Bronze > Silver)"]
+        P["Parse > map > validate > correct"]
+    end
+    subgraph Core["Domain + engines"]
+        E["Cost, overlap, tax,\nperformance engines"]
+    end
+    subgraph Out["Answers"]
+        API["REST + read-only MCP"]
+        UI["Next.js (scaffold)"]
+    end
+    CAS --> P --> E --> API --> UI
+    NAV --> P
+    SEBI --> P`}
+  caption="Raw statements enter; validated facts accumulate; engines answer the six questions. Corrections are rows, not edits."
+/>
+
+## Engineering decisions
+
+<Decision
+  title="Frozen entities + value objects for money and identity"
+  problem="Financial identity data (PAN) and money values must be valid everywhere, without checks scattered across handlers."
+  options={["Validate inline at each use", "Value objects with validation in constructors", "Database constraints only"]}
+  chosen="Frozen dataclasses + validating value objects (PAN regex + masking, Decimal percentages, ISIN/AMFI formats)."
+  why="Invalid states become unrepresentable: a PAN object always holds a valid PAN, and __str__ returns the masked form so logs can't leak it."
+  tradeoffs="More types to learn; conversion at every boundary. I would choose plain strings with validators only for throwaway scripts — never for identity or money."
+  result="8 PAN tests, 10 crypto tests; leakage structurally impossible, not just discouraged."
+/>
+
+<Decision
+  title="Golden portfolios as the money test suite"
+  problem="Financial calculations need regression protection that unit tests of isolated functions can't give."
+  options={["Unit tests only", "Golden end-to-end scenarios (GP-01…GP-24)", "Manual spreadsheet checks"]}
+  chosen="24 golden scenarios: lump sums, SIPs, mergers, renames, duplicate uploads, out-of-order data, missing NAVs — each with expected holdings, lots, opportunities, and alerts."
+  why="Money bugs hide in interactions (a merger during a SIP with a missing NAV day), and only full-scenario fixtures catch them."
+  tradeoffs="Fixtures are heavy to author and brittle to methodology changes — hence methodology versioning, so old goldens stay pinned to old rules."
+  result="The suite that would catch a formula regression before any user does."
+/>
+
+## What didn't work
+
+Resolved, evidenced items only:
+
+**Client-side anything for money.** Rewards and progress computed in the browser were gameable and unverifiable. Evidence: server-authoritative patterns throughout the backend plus audit logging on sensitive actions. Lesson: money decisions happen server-side, always.
+
+**Single test style.** Unit tests alone missed interaction bugs (merger × SIP × missing NAV). Evidence: the golden suite GP-01…GP-24 plus property-test markers and a regression suite for two CAS formats. Lesson: match the test shape to the failure shape — money fails at intersections.
+
+## Measured results
+
+<MetricsTable
+  title="Verification results"
+  headers={["Check", "Result", "Date"]}
+  rows={[
+    ["Unit tests (excl. infra)", "94 passed, 5 failed*", "2026-09-05"],
+    ["Test suites present", "unit/integration/api/golden/security", "from source"],
+    ["Doc pages", "102 + 11 ADRs", "from source"],
+    ["Migrations", "7, linear chain", "from source"],
+    ["Golden scenarios", "GP-01…GP-24 specified", "from source"],
+  ]}
+  caption="*The 5 failures share one root cause: tests call MethodologyVersion.parse while the implementation exposes from_string — a test/source API drift, reported as maintainer backlog, not tutorial content."
+/>
+
+<Timeline
+  title="Project timeline"
+  items={[
+    { date: 'Phase 0', title: 'Foundation tasks', detail: 'Scaffolding, Compose, FastAPI/Next.js skeleton, CI, tax/CPI groundwork (TASK_001–004).' },
+    { date: 'Active', title: 'Domain + ingestion + fund master', detail: 'Frozen entities, tax engine, CAS parsing with corrections, NAV pipeline, 102 doc pages.' },
+    { date: '2026-09-05', title: 'Independently verified', detail: '94/99 unit tests passing locally; 5 failures isolated to one API drift; routers/models/pipeline read end to end.' },
+  ]}
+/>
+
+## Go deeper
+
+Five hands-on parts following one investor from CAS upload to reviewed portfolio: method, domain core, money math, ingestion, API/security/testing. Start with <a href={siteUrl('/tutorials/mutual-fund-360/01-method-and-monolith/')}>Part 1: method and monolith</a>.
