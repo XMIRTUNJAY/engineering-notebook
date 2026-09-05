@@ -18,7 +18,6 @@ import ProjectMetadata from '../../components/case-study/ProjectMetadata.astro';
 import ArchitectureDiagram from '../../components/case-study/ArchitectureDiagram.astro';
 import Callout from '../../components/case-study/Callout.astro';
 import Decision from '../../components/case-study/Decision.astro';
-import EvidenceBar from '../../components/case-study/EvidenceBar.astro';
 import MetricsTable from '../../components/case-study/MetricsTable.astro';
 import Timeline from '../../components/case-study/Timeline.astro';
 import { siteUrl } from '../../lib/site';
@@ -120,6 +119,36 @@ Five constraints hold regardless of mood: money math reproducible (versions + go
 
 Follow Ravi's upload: CAS parse (forgiving) → strict validation → scheme mapping with confidences → corrections as new rows, never edits → NAV heartbeat fills gaps → cost, overlap, tax, and performance engines read settled facts → REST answers, and a read-only agent server offers the same to AI clients. Temporal modeling runs through all of it — schemes resolve as-of any date, multi-hop merger chains followed, circular mappings raising instead of looping forever.
 
+<ArchitectureDiagram
+  title="The canonical model: what derives from what"
+  chart={`flowchart TB
+    CAS["CAS statements"]
+    NAV["AMFI NAV feed"]
+    CAS --> P["Parse > map > validate"]
+    NAV --> P
+    P --> L["Normalized transactions (immutable)"]
+    COR["Corrections as new rows"] --> L
+    L --> T["Tax lots (FIFO)"]
+    T --> H["Holdings, as of any date"]
+    H --> E["Cost / overlap / tax / performance engines"]
+    MV["Methodology version"] -.-> E
+    G["Goldens GP-01..GP-24"] -.-> E
+    E --> A["Answers: REST + read-only MCP"]`}
+  caption="Read top to bottom in 30 seconds: messy input settles into immutable facts; lots derive holdings; engines answer — pinned to a methodology version, guarded by golden portfolios. Nothing downstream is ever edited, only re-derived."
+/>
+
+<MetricsTable
+  title="Scheme mapping: four strategies, strictest first"
+  headers={["Step", "Matches on", "Confidence"]}
+  rows={[
+    ["1. AMFI code", "Exact code from the statement", "1.0"],
+    ["2. ISIN", "Security identifier", "0.98"],
+    ["3. Normalised name", "Exact match after cleanup", "0.95"],
+    ["4. Fuzzy (difflib)", "Similarity ratio, above threshold", "score"],
+  ]}
+  caption="From scheme_mapper.py: first match wins, confidence recorded per row. No match raises — the caller queues it for human review instead of guessing."
+/>
+
 <ProjectMetadata rows={[
   { label: 'Language', value: 'Python 3.11 (strict typing)' },
   { label: 'Shape', value: 'Modular monolith (DDD layers)' },
@@ -137,13 +166,6 @@ Follow Ravi's upload: CAS parse (forgiving) → strict validation → scheme map
 | **Observed** | The doc/docs split (read-only master vs living blueprint) surviving real development; task reports drifting from task status |
 | **Intended** | Zero-failure suite once the drift is fixed; frontend beyond scaffold |
 | **Unknown** | Behavior on a decade of real CAS history; multi-user load |
-
-<EvidenceBar items={[
-  { label: 'Unit tests', value: '94 passed, 5 failed*' },
-  { label: 'Test suites', value: 'unit/integration/api/golden' },
-  { label: 'Doc pages', value: '102 + 11 ADRs' },
-  { label: 'Measured', value: '2026-09-05' },
-]} />
 
 <MetricsTable
   title="Verification results"

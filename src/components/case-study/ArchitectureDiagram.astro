@@ -16,6 +16,7 @@ const id = `mermaid-${Math.random().toString(36).slice(2, 10)}`;
 </figure>
 
 <script>
+	let renderSeq = 0;
 	async function renderAll() {
 		const host = document.querySelector('.mermaid-src');
 		if (!host) return;
@@ -47,7 +48,9 @@ const id = `mermaid-${Math.random().toString(36).slice(2, 10)}`;
 		const nodes = document.querySelectorAll<HTMLElement>('.mermaid-src:not([data-rendered="true"])');
 		for (const node of nodes) {
 			try {
-				const { svg } = await mermaid.render(node.id + '-svg', node.textContent ?? '');
+				// Fresh id per render: mermaid rejects re-rendering into a used id,
+				// which is exactly what the theme toggle triggers.
+				const { svg } = await mermaid.render(node.id + '-svg-' + renderSeq++, node.textContent ?? '');
 				node.innerHTML = svg;
 				node.dataset.rendered = 'true';
 			} catch (err) {

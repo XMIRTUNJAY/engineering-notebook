@@ -20,7 +20,6 @@ import ScreenshotGallery from '../../components/case-study/ScreenshotGallery.ast
 import DemoVideo from '../../components/case-study/DemoVideo.astro';
 import Callout from '../../components/case-study/Callout.astro';
 import Decision from '../../components/case-study/Decision.astro';
-import EvidenceBar from '../../components/case-study/EvidenceBar.astro';
 import MetricsTable from '../../components/case-study/MetricsTable.astro';
 import Timeline from '../../components/case-study/Timeline.astro';
 import { siteUrl } from '../../lib/site';
@@ -102,23 +101,7 @@ Neither table is universal advice. Each row holds only under this project's cons
 
 <TechStack items={['Python 3.11', 'FastAPI', 'PostgreSQL + pgvector', 'Redis', 'MinIO', 'SQLAlchemy 2', 'Alembic', 'Pytest', 'Next.js']} />
 
-The whole system is one loop. Learn it once; the rest is detail:
-
-```text
-Priya answers a question
-  ↓
-The app records the attempt
-  ↓
-Mastery score is recalculated
-  ↓
-Weak topics are re-ranked
-  ↓
-Recommendations refresh
-  ↓
-Reviews are rescheduled
-```
-
-Six terms, explained once and never again:
+The whole system is one loop — answer, record, rescore, re-rank, refresh, reschedule — drawn below where a quiz answer travels. Six terms, explained once and never again:
 
 - **API.** A menu of URLs. The screen orders; the backend cooks. `POST /exams/generate` means "cook me a new exam".
 - **Database.** The notebook. Everything Priya did lives in Postgres: content, progress, history.
@@ -126,6 +109,28 @@ Six terms, explained once and never again:
 - **Seeded shuffle.** Randomness with a fixed starting number. Same seed, same paper — a "random" exam that can be re-checked.
 - **Vector search.** Finding by meaning: each concept gets 1024 numbers, similar meanings sit close, one indexed query finds neighbors.
 - **Stratified sampling.** Dealing from marked decks — fixed shares per topic and difficulty, so no section hides.
+
+<ArchitectureDiagram
+  title="What SM-2 does to one flashcard"
+  chart={`flowchart TB
+    R["Review: grade quality 0-5"]
+    R -->|3 or more| D1["Due tomorrow (was 1 day, now longer)"]
+    D1 --> D6["Due in 6 days"]
+    D6 --> DE["Due in interval x ease (e.g. 15 days)"]
+    R -->|below 3| F["Due tomorrow, ease taxed"]
+    F --> R`}
+  caption="Passing stretches the wait (1, 6, then x ease); failing resets it to tomorrow. The numbers are the schedule — that is the whole algorithm from the learner's side."
+/>
+
+<ArchitectureDiagram
+  title="Why the shuffle is seeded"
+  chart={`flowchart TB
+    S1["Seed 42"] --> PA["Paper A (20 questions)"]
+    S2["Seed 42 again"] --> PA2["Paper A, identical"]
+    S3["Seed 43"] --> PB["Paper B, different"]
+    PA2 -.->|re-checkable| PA`}
+  caption="Same seed, same paper: a 'random' exam any run can reproduce. Stratified dealing (fixed shares per topic and difficulty) happens inside each shuffle, so fairness and repeatability come together."
+/>
 
 Three chains connect requirements to what got built:
 
@@ -190,13 +195,6 @@ Who remembers what: Postgres holds everything that matters (lose Redis and the s
 | **Intended** (designed, not yet proven) | 80% coverage floor holding as code grows; hybrid keyword-plus-vector ranking |
 | **Unknown** (not measured) | Behavior past single-node scale; real-learner retention lift; 60-question exam latency; write path after the CORS/duplicate fixes |
 
-<EvidenceBar items={[
-  { label: 'Unit tests', value: '86 / 86 passing' },
-  { label: 'Coverage (unit)', value: '52% measured' },
-  { label: 'Routers', value: '16 groups' },
-  { label: 'Measured', value: '2026-09-05' },
-]} />
-
 <MetricsTable
   title="Verification results"
   headers={["Check", "Result", "Date"]}
@@ -216,7 +214,22 @@ Running it costs $0 above the machine — containers locally, arithmetic for a b
 
 The repo commits its own agent instructions (`AGENT.md`, `CLAUDE.md`), which is the honest version of "AI-assisted": the agent reads the same specs, ADRs, and layer rules a human teammate would. What gets delegated: implementation inside a reviewed plan, tests, validators, boilerplate. What doesn't: the decisions above, the weights, the fairness rules, the call on what ships.
 
-Verification is mechanical, not hopeful: `make test-unit` must stay green, the layer rule is checked in review, new magic numbers need owners. One gap I'll name plainly: agent mistakes aren't logged anywhere — there is no record of what agents got wrong, so that particular lesson can't compound yet. The test suite catches the errors; the absence of a log means the *patterns* escape.
+Verification is mechanical, not hopeful: `make test-unit` must stay green, the layer rule is checked in review, new magic numbers need owners.
+
+<ArchitectureDiagram
+  title="The loop an agent works inside"
+  chart={`flowchart TB
+    S["Spec + ADRs + layer rules"]
+    S --> I["Agent implements"]
+    I --> T["Suite runs (~4 s)"]
+    T -->|green| SH["Ship"]
+    T -->|red| D["Diagnose (human or agent)"]
+    D --> C["Correct"]
+    C --> T`}
+  caption="Agents work inside the loop, never outside it: the spec constrains, the suite judges, humans decide. The missing piece is a log of agent mistakes — the loop catches errors, but without a record the patterns escape."
+/>
+
+One gap I'll name plainly: agent mistakes aren't logged anywhere — there is no record of what agents got wrong, so that particular lesson can't compound yet. The test suite catches the errors; the absence of a log means the *patterns* escape.
 
 ## Reflection
 

@@ -21,7 +21,6 @@ import DemoVideo from '../../components/case-study/DemoVideo.astro';
 import ArchitectureDiagram from '../../components/case-study/ArchitectureDiagram.astro';
 import Callout from '../../components/case-study/Callout.astro';
 import Decision from '../../components/case-study/Decision.astro';
-import EvidenceBar from '../../components/case-study/EvidenceBar.astro';
 import MetricsTable from '../../components/case-study/MetricsTable.astro';
 import Timeline from '../../components/case-study/Timeline.astro';
 import { siteUrl } from '../../lib/site';
@@ -120,6 +119,29 @@ The file to understand first is `local-bridge.ts`: every data request passes thr
 
 The monthly check-in wizard is where truth enters: per-asset values, once a month, becoming snapshots. Everything downstream — net worth, journey chart, runway, Monte Carlo bands, what-if scenarios — derives from those rows. Delete every derived table and the app rebuilds them; delete the snapshots and there is nothing. That asymmetry is the whole design.
 
+<ArchitectureDiagram
+  title="Snapshots in, everything else out"
+  chart={`flowchart TB
+    S["Monthly snapshots (you enter)"]
+    S --> N["Net worth"]
+    S --> H["History cache (recalculable)"]
+    S --> J["Journey chart"]
+    S --> R["Runway"]
+    S --> M["Monte Carlo bands"]
+    S --> SC["What-if scenarios"]`}
+  caption="One source of truth, six derivations. The history table has no write route — it is a cache the app recomputes. This is the diagram to hold against any finance app: which box is the truth, and what happens when you delete the rest?"
+/>
+
+<ArchitectureDiagram
+  title="How a forecast is built (schematic)"
+  chart={`flowchart LR
+    SE["Seed"] --> LG["LCG + Box-Muller"]
+    LG --> P["1,000 paths"]
+    P --> Q["p10 / p50 / p90"]
+    Q --> B["Bands, not points"]`}
+  caption="Structure only, not measured output: a fixed seed makes the simulation bit-identical across runs (measured), which is what makes statistical code unit-testable. Measured cost (~31 ms per run) is in the verification table below."
+/>
+
 <ProjectMetadata rows={[
   { label: 'Language', value: 'TypeScript (strict)' },
   { label: 'Framework', value: 'Next.js 14 App Router' },
@@ -156,13 +178,6 @@ Screenshots and video captured from a live local run against fictional demo data
 | **Observed** | UI recomputes projections per keystroke without perceptible lag; offline mode indistinguishable from server mode in normal use |
 | **Intended** | Server/client recompute parity tests; inflation wired into Monte Carlo paths |
 | **Unknown** | Multi-year dataset performance; sync-conflict behavior beyond last-write-wins |
-
-<EvidenceBar items={[
-  { label: 'Unit tests', value: '40 / 40 passing' },
-  { label: 'Screenshots', value: '3 verified live' },
-  { label: 'Demo video', value: '3:38 narrated tour' },
-  { label: 'Measured', value: '2026-09-04' },
-]} />
 
 <MetricsTable
   title="Verification results"
