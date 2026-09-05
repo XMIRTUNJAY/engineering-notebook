@@ -18,6 +18,8 @@ import Callout from '../../../components/case-study/Callout.astro';
 
 ## What is a pure function?
 
+The hub's audit found money math with no test harness — formulas nobody could check. The naive fix is more careful code in the same scattered places; what breaks is trust, because a wrong number looks exactly like a right one. This part builds the alternative: one folder where every number is checkable.
+
 A **pure function** takes inputs, returns an output, and touches nothing else — no database, no screen, no clock. `add(2, 3)` always returns `5`. That property makes pure functions trivially testable: feed values in, assert values out. The engine rule in this project is simple — **all money math is pure functions**. The UI can be redesigned and the database can be swapped without touching a single formula.
 
 ## The eight modules

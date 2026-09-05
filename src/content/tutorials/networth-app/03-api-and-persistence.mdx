@@ -18,6 +18,8 @@ import Callout from '../../../components/case-study/Callout.astro';
 
 ## What is an API route?
 
+The engine from Part 2 computes beautifully and reaches nobody. The naive connection — screens writing straight to the database — is how progress gets forged and histories get corrupted. This part puts locked doors between clicks and data: routes that validate, a single writer per derived dataset, and one file holding the whole database.
+
 When you click Save, the browser doesn't write to the database directly — it sends a **request** ("POST this new asset") to a backend **endpoint**, which validates, stores, and replies. In Next.js, each endpoint is just a file: `src/app/api/assets/route.ts` answers requests to `/api/assets`. Twenty-one such files form the entire backend. No separate server project, no network configuration — files on disk become URLs by convention.
 
 Requests come in four flavors (**CRUD**): GET (read), POST (create), PUT (update), DELETE (delete). Every entity in the app — assets, snapshots, liabilities, goals, transactions, check-ins, scenarios, settings — gets this treatment:

@@ -18,6 +18,8 @@ import Callout from '../../../components/case-study/Callout.astro';
 
 ## What offline-first means
 
+Part 1 promised zero cloud dependency as a constraint, not a feature — this part pays that debt. The naive version requires a connection and dies without one; what breaks is the privacy story from Part 1, because a finance tool that needs permission to function isn't really yours. Offline-first, then sync so simple it can't misunderstand you.
+
 Most apps die without internet: the screen loads, the data doesn't. **Offline-first** flips the priority — the app works fully on the device, and the network is an enhancement, not a requirement. For a finance tool holding sensitive data, that is also a privacy story: your numbers never have to leave your machine.
 
 Three pieces make it real here: a browser database, a request router, and an installable shell (the service worker from Part 4). This part covers the first two.

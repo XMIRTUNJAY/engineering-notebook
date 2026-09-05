@@ -18,6 +18,8 @@ import Callout from '../../../components/case-study/Callout.astro';
 
 ## Step 1 — Serve with row-level paranoia
 
+Parts 1–4 built method, domain, math, and ingestion for Ravi's money — every rupee now traceable to a versioned formula and an append-only correction chain. This final part locks the doors around it and proves it all: serve nothing a tenant shouldn't see, test money like money depends on it, and say plainly what "done" means.
+
 Auth is JWT (15-min access, 30-day rotating refresh, Argon2id, 5 attempts per 15 min per IP). Then defense in depth: Postgres **row-level security** on every tenant table keyed to the session user (verified by tests asserting zero rows without a tenant, and that user B cannot list user A's portfolios), app-level `user_id` scoping on top, PAN encrypted AES-256-GCM with masked display, rate limits per surface (auth 5/min, imports 10/hr, reports 5/hr), security headers, RFC7807 errors. First principle: **no single layer is the security model** — RLS guards against app bugs, app scoping guards against RLS misconfiguration, masking guards against log leaks.
 
 ## Step 2 — Test money like money depends on it
