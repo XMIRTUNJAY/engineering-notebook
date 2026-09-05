@@ -9,5 +9,5 @@
     <text x="80" y="282" font-family="Georgia, 'Times New Roman', serif" font-size="62" font-weight="700" fill="#18181b">Award XP. That Was a</text>
     <text x="80" y="354" font-family="Georgia, 'Times New Roman', serif" font-size="62" font-weight="700" fill="#18181b">Mistake.</text>
   <text x="80" y="664" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="23" fill="#63636b">2026-09-05 · 6 sections</text>
-  <circle cx="935" cy="380" r="122" fill="none" stroke="#18181b" stroke-width="2.5"/><circle cx="935" cy="380" r="82" fill="none" stroke="#18181b" stroke-width="2.5"/><circle cx="935" cy="380" r="42" fill="#2337ff" fill-opacity="0.14" stroke="#18181b" stroke-width="3"/><circle cx="935" cy="380" r="11" fill="#2337ff"/>
+  <circle cx="935" cy="380" r="112" fill="none" stroke="#18181b" stroke-width="3"/><polygon points="935,253 917,279 953,279" fill="#18181b"/><circle cx="935" cy="380" r="12" fill="#2337ff"/>
 </svg>

@@ -326,6 +326,13 @@ const MODELS = {
 	'mutual-fund-360': ['donut', {}],
 	'exclusion-first-scan': ['filter', {}],
 	'seeded-monte-carlo': ['fanBand', {}],
+	'de-nobody-could-log-in': ['gates', {}],
+	'de-contract-drift': ['fork', {}],
+	'de-silent-writes': ['filter', {}],
+	'de-dead-code-paths': ['pipeline', { n: 5 }],
+	'de-green-tests-red-services': ['twin', {}],
+	'de-plan-said-done': ['sync', {}],
+	'de-browser-xp': ['loop', {}],
 };
 
 function wrap(title, max = 22) {

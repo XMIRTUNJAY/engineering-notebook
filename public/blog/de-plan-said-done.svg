@@ -10,5 +10,5 @@
     <text x="80" y="354" font-family="Georgia, 'Times New Roman', serif" font-size="62" font-weight="700" fill="#18181b">Exists Mostly as</text>
     <text x="80" y="426" font-family="Georgia, 'Times New Roman', serif" font-size="62" font-weight="700" fill="#18181b">Checkmarks</text>
   <text x="80" y="664" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="23" fill="#63636b">2026-09-05 · 6 sections</text>
-  <circle cx="935" cy="380" r="122" fill="none" stroke="#18181b" stroke-width="2.5"/><circle cx="935" cy="380" r="82" fill="none" stroke="#18181b" stroke-width="2.5"/><circle cx="935" cy="380" r="42" fill="#2337ff" fill-opacity="0.14" stroke="#18181b" stroke-width="3"/><circle cx="935" cy="380" r="11" fill="#2337ff"/>
+  <rect x="748" y="315" width="140" height="110" rx="12" fill="#fff" stroke="#18181b" stroke-width="3"/><rect x="992" y="315" width="140" height="110" rx="12" fill="#fff" stroke="#18181b" stroke-width="3"/><line x1="902" y1="368" x2="978" y2="368" stroke="#2337ff" stroke-width="3.5"/><polygon points="902,368 916,360 916,376" fill="#2337ff"/><polygon points="978,368 964,360 964,376" fill="#2337ff"/><circle cx="818" cy="370" r="9" fill="#2337ff"/>
 </svg>
