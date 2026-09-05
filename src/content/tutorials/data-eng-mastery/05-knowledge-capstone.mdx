@@ -16,8 +16,9 @@ pubDate: 2026-09-05
 
 import Callout from '../../../components/case-study/Callout.astro';
 import CodeExample from '../../../components/case-study/CodeExample.astro';
+import ArchitectureDiagram from '../../../components/case-study/ArchitectureDiagram.astro';
 
-## When Priya searches
+## Topic 1 — When Priya searches
 
 She types "clustering" and gets concepts ranked by meaning, not keywords. One query does it — real code from `backend/app/knowledge/engine.py`:
 
@@ -37,15 +38,74 @@ ORDER BY similarity DESC LIMIT :k
 
 First principle: **co-locate what you correlate.** **Your turn:** add one embedding column plus this query shape behind your existing search box before shopping for infrastructure.
 
-## When Priya asks "what first?"
+**You are here:** Part 5 of 5 — the capstone. Parts 1–4 built the maps, math, API, and pipeline; this part connects everything Priya can ask — and everything agents can ask too.
+
+## Topic 2 — Reading that query like an engineer
+
+Four clauses, four jobs. `SELECT` with `<=>` computes cosine distance beside the row — no second system, no export. `WHERE similarity >= :threshold` (0.7) discards weak matches early instead of ranking noise. `ORDER BY similarity DESC` ranks what remains. `LIMIT :k` (10) caps work and screen space. Because the embedding lives in the same row, certification and keyword filters join in the same round trip — that join is the feature the sidecar architectures pay a sync job to imitate.
+
+Two numbers carry contracts: **1024** (embedding width — change models, migrate data) and **0.7** (match floor — a product decision with an owner, per Part 2's rule that magic numbers get names and dates). **Your turn:** find one magic number in your codebase without an owner. Assign it one today.
+
+## Topic 3 — HNSW: the index that makes it fast
+
+Without an index, every search compares against every row — fine at hundreds of concepts, hopeless at millions. HNSW (Hierarchical Navigable Small World) pre-builds shortcut layers over the vectors so a query descends greedily instead of scanning. Priya-sized data would survive a scan; the index is bought for headroom, honestly labeled as such.
+
+The honest-scope rule again: match machinery to measured need. Under ~50 static graph nodes, sorted adjacency beats a graph database with an operator (Topic 4). Under thousands of vectors, HNSW beats a scan. In both cases the article states the crossover instead of pretending the heavy tool was always necessary.
+
+## Topic 4 — When Priya asks "what first?"
 
 Typed edges (prerequisite, enables, replaces, related) answer three questions: ancestors (what first), reverse lookup (what unlocks), depth-sorted paths minus mastered nodes. Kahn's topological sort *raises* on cycles — a curriculum requiring A-before-B-before-A is broken by construction, and code should prove it. Match machinery to scale: under ~50 static nodes, sorted adjacency beats a graph database with an operator.
 
-## When agents ask instead of Priya
+Walk one: Priya targets "Liquid Clustering". Ancestors climb prerequisite edges (partitioning basics → file layout → clustering); mastered nodes drop out; the remainder depth-sorts into her reading order. The same walk powers "what unlocks" in reverse — finish clustering and the app can congratulate her with the exact doors it opened.
+
+<ArchitectureDiagram
+  title="One question, three systems answering"
+  chart={`flowchart LR
+    Q["Priya asks"]
+    S["Search: meaning match"]
+    G["Graph: what first"]
+    A["Agents: same tools"]
+    Q --> S
+    Q --> G
+    Q --> A`}
+  caption="Search, graph, and agent tools are three doors into one backend — the Part-3 services doing the real work."
+/>
+
+## Topic 5 — When agents ask instead of Priya
 
 Same backend, third client: MCP tools (search, concept, path, progress, quiz, export) plus Obsidian vault exports. Mental model: **client diversity tests service design** — clean Part-3 services meant agents mapped to existing capabilities instead of demanding new endpoints. Design services so the third client is cheap; you won't know what it is yet.
 
-## Vocabulary (her words → our words)
+Agent safety, plainly: tools expose reads and quiz attempts — the same operations Priya's screen performs, through the same auth and validation. No tool bypasses a gate Priya faces. The day an agent needs a capability Priya lacks (bulk export, admin reads), that tool gets its own auth review — capability and permission ship together, never apart.
+
+## Topic 6 — Directing an AI agent at this knowledge layer
+
+```text
+You are adding a knowledge capability (search, graph, or agent tool).
+
+Goal: <one sentence>
+Constraints:
+- Co-locate before adding infrastructure (Topic 1): prove the query can't
+  live in Postgres first.
+- New magic numbers get names, owners, and tests (Topic 2).
+- Agent tools wrap existing services; no new endpoints unless you prove
+  the need (Topic 5).
+- Run make test-unit before finishing.
+
+Before coding:
+1. State which of search/graph/agent answers this and why.
+2. Show the query or traversal on paper with real content.
+3. Then implement.
+```
+
+## Topic 7 — Failure modes of knowledge systems
+
+- **Stale embeddings.** Content edited, vectors not recomputed — meaning search lies quietly. Defense: the pipeline's vectorize stage re-runs on publish (Part 4); edits outside the pipeline are the hole — close it by routing all writes through publish.
+- **Threshold rot.** 0.7 was right for last year's content; new topics drift. Defense: the cutoff has an owner and a review habit, not just a value.
+- **Dimension lock-in.** New embedding model, old 1024-wide column. Defense: stated up front as the contract's price (Topic 1 tradeoff) — migration planned, not discovered.
+- **Graph cycles.** A-before-B-before-A curricula. Defense: Kahn's sort raises; the error names the cycle.
+- **Agent overreach.** A tool exposing more than its screen equivalent. Defense: capability parity review for every new tool.
+
+## Topic 8 — Vocabulary (her words → our words)
 
 - **Concept** — one learnable idea with explanations, examples, traps.
 - **Mastery (0–1, stored 0–1000)** — measured command; 0.55 means "understanding", 0.74 "application".
@@ -58,22 +118,28 @@ Same backend, third client: MCP tools (search, concept, path, progress, quiz, ex
 - **MCP tool** — one backend capability, callable by AI agents.
 - **JWT rotation** — short access tokens plus renewable refresh tokens.
 
-## What worked
+## Topic 9 — Exercises
 
-Spec-first structure surviving a year; pure-function engine testable in milliseconds; one store serving three query kinds; gates deciding while models draft; sources of truth named per concern.
+1. Search "clustering" and "partitioning". Which results overlap? Explain why using the embedding column (same neighborhood) versus keywords (shared words).
+2. Draw the prerequisite ancestors of one concept three levels up. Then delete one edge — what breaks in the path?
+3. Lower the similarity cutoff to 0.5 in a scratch query. Count the junk. Restore 0.7 and write down why the owner was right.
+4. List every MCP tool beside its backing service. Any tool without one is a design smell — report it.
+5. Ask an AI agent to propose a new edge type with the Topic 6 prompt. Judge: does it prove Postgres can't hold it?
 
-## What didn't (resolved, evidenced)
+## Topic 10 — What worked, what I'd change, what's next
 
-Client-awarded XP → server-side (BUG-017). Untested math → 86 tests. Fixture rows polluting production-shape data → seed/teardown discipline. Each encoded — in code, tests, or process — so it teaches forever.
+Worked: spec-first structure surviving a year; pure-function engine testable in milliseconds; one store serving three query kinds; gates deciding while models draft; sources of truth named per concern.
 
-## What I'd change
+Changed already (resolved, evidenced): client-awarded XP → server-side (BUG-017). Untested math → 86 tests. Fixture rows polluting production-shape data → seed/teardown discipline. Each encoded — in code, tests, or process — so it teaches forever.
 
-Write the dimension contract before the first embedding lands (discovered, not designed). Collapse the duplicate flat/integration test files into one layout. Promote the progress tracker from honest record to weekly ritual.
+I'd change: write the dimension contract before the first embedding lands (discovered, not designed). Collapse the duplicate flat/integration test files into one layout. Promote the progress tracker from honest record to weekly ritual.
 
-## Principle worth keeping
+Investigate next: calibrating mastery weights against logged outcomes (judgment → evidence); hybrid keyword-plus-vector ranking with measured lifts; per-section time estimates from attempt timestamps. Each a small experiment — hypotheses first, numbers after. **Your turn:** pick one, write its hypothesis in one sentence, and name the measurement that would confirm it.
+
+## Topic 11 — Principle worth keeping
 
 Structured projects feel calm because every hard question was answered once, in writing, where the code can point at it. Tangled projects feel loud because those answers live in someone's head — usually someone who left.
 
-## What I'd investigate next
+## Series complete — what you can now build
 
-Calibrating mastery weights against logged outcomes (judgment → evidence); hybrid keyword-plus-vector ranking with measured lifts; per-section time estimates from attempt timestamps. Each a small experiment — hypotheses first, numbers after. **Your turn:** pick one, write its hypothesis in one sentence, and name the measurement that would confirm it.
+You can rebuild this class of system — deterministic brain, served API, gated pipeline, searchable knowledge — for any study domain, and you can say why each piece exists, what breaks without it, and what you'd measure first. That was the promise in Part 1. The certificate at the end is Priya's; the architecture is yours.
